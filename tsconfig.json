@@ -1,0 +1,85 @@
+{
+  "compilerOptions": {
+    "rootDir": "src",
+    "outDir": "lib",
+    "baseUrl": "./src",
+    "paths": {
+      "#": [
+        ""
+      ],
+      "#config/*": [
+        "config/*"
+      ],
+      "#infra/*": [
+        "infra/*"
+      ],
+      "#modules/*": [
+        "modules/*"
+      ],
+      "#shared/*": [
+        "shared/*"
+      ],
+      "#types/*": [
+        "shared/types/*"
+      ],
+      "#utils/*": [
+        "utils/*"
+      ],
+      "#api/*": [
+        "modules/api/index.ts"
+      ],
+      "#controllers/*": [
+        "shared/controllers/*"
+      ],
+      "#middleware/*": [
+        "shared/middleware/*"
+      ],
+      "#services/*": [
+        "shared/services/*"
+      ],
+      "#constants/*": [
+        "constants/*"
+      ]
+    },
+    // Environment Settings
+    // See also https://aka.ms/tsconfig/module
+    "module": "node16",
+    "moduleResolution": "node16",
+    "allowImportingTsExtensions": true,
+    "emitDeclarationOnly": true,
+    "target": "es2024",
+    "lib": [
+      "esnext"
+    ],
+    "types": [
+      "node"
+    ],
+    "sourceMap": true,
+    "declaration": true,
+    "declarationMap": true,
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
+    // Recommended Options
+    "strict": true,
+    "jsx": "react-jsx",
+    "verbatimModuleSyntax": true,
+    "isolatedModules": true,
+    "noUncheckedSideEffectImports": true,
+    "moduleDetection": "force",
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "resolveJsonModule": true,
+  },
+  "ts-node": {
+    "esm": true
+  },
+  "include": [
+    "src",
+    "src/**/*.ts"
+, "dist"  ],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "lib"
+  ]
+}
