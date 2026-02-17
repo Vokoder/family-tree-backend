@@ -1,8 +1,9 @@
 import { Router } from "express";
 import { deleteProfileController, getProfileController, updateProfileController } from "./profile.controller.ts";
+import { authenticateTokenMiddleware } from "#shared/middleware/check-jwt.middleware.ts";
 
 export const profileRouter = Router();
 
 profileRouter.get('/', getProfileController);
-profileRouter.put('/', updateProfileController);
-profileRouter.delete('/', deleteProfileController);
+profileRouter.put('/', authenticateTokenMiddleware, updateProfileController);
+profileRouter.delete('/', authenticateTokenMiddleware, deleteProfileController);
