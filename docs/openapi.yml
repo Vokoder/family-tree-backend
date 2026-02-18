@@ -1,0 +1,727 @@
+openapi: 3.1.0
+info:
+  title: Family tree
+  version: 1.0.0
+  description: The server part of a web application for searching for relatives and building a family tree
+servers:
+  - url: http://localhost:80
+    description: Local
+
+tags:
+  - name: Authorisation
+  - name: Search
+  - name: Tree
+  - name: Profile
+  - name: Person
+  - name: Relation
+
+paths:
+  # ========== Authorisation ==========
+  /auth/register:
+    post:
+      tags:
+        - Authorisation
+      summary: Регистрация нового пользователя
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Успешная регистрация, возвращает JWT и refresh токен
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '409':
+          description: Пользователь с таким именем уже существует
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RegisterConflict'
+        '400':
+          description: Некорректные данные
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /auth/login:
+    post:
+      tags:
+        - Authorisation
+      summary: Вход в систему
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Успешный вход, возвращает JWT и refresh токен
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '401':
+          description: Неверный логин или пароль
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Unauthorized'
+        '400':
+          description: Некорректные данные
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /auth/logout:
+    post:
+      tags:
+        - Authorisation
+      summary: Выход из системы (деавторизация)
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Успешный выход
+          content: {}
+        '401':
+          description: Не авторизован (отсутствует или невалидный JWT)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Unauthorized'
+
+  # ========== Search ==========
+  /search:
+    get:
+      tags:
+        - Search
+      summary: Поиск пользователей по фильтрам
+      parameters:
+        - name: query
+          in: query
+          description: Поисковый запрос
+          schema:
+            type: string
+        - name: limit
+          in: query
+          description: Лимит результатов
+          schema:
+            type: integer
+            default: 10
+        # можно добавить другие параметры фильтрации
+      responses:
+        '200':
+          description: Список найденных пользователей
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserSearchResult'
+
+  # ========== Tree ==========
+  /tree:
+    get:
+      tags:
+        - Tree
+      summary: Получение дерева (требуется JWT)
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Дерево пользователя (заглушка)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: string
+                    example: "tree data"
+        '401':
+          description: Не авторизован
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Unauthorized'
+
+  # ========== Profile ==========
+  /profile/me:
+    get:
+      tags:
+        - Profile
+      summary: Получение профиля текущего пользователя
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Данные профиля
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Profile'
+        '401':
+          description: Не авторизован
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Unauthorized'
+
+  /profile/{userId}:
+    get:
+      tags:
+        - Profile
+      summary: Получение публичного профиля пользователя по ID
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: ID пользователя
+      responses:
+        '200':
+          description: Данные профиля
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Profile'
+        '404':
+          description: Пользователь не найден
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotFound'
+
+  /profile:
+    put:
+      tags:
+        - Profile
+      summary: Обновление профиля текущего пользователя
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProfileUpdate'
+      responses:
+        '200':
+          description: Профиль обновлен, возвращает обновленные данные (опционально)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Profile'
+        '204':
+          description: Профиль обновлен, тело ответа пустое
+        '401':
+          description: Не авторизован
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Unauthorized'
+        '400':
+          description: Некорректные данные
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    delete:
+      tags:
+        - Profile
+      summary: Удаление профиля текущего пользователя
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Профиль удален
+          content: {}
+        '401':
+          description: Не авторизован
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Unauthorized'
+
+  # ========== Person ==========
+  /person:
+    post:
+      tags:
+        - Person
+      summary: Создание новой записи о человеке
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PersonCreate'
+      responses:
+        '200':
+          description: Созданный объект человека
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Person'
+        '401':
+          description: Не авторизован
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Unauthorized'
+        '400':
+          description: Некорректные данные
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /person/{personId}:
+    get:
+      tags:
+        - Person
+      summary: Получение информации о человеке по ID
+      parameters:
+        - name: personId
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: ID человека
+      responses:
+        '200':
+          description: Данные человека
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Person'
+        '404':
+          description: Человек не найден
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotFound'
+
+    put:
+      tags:
+        - Person
+      summary: Обновление данных человека
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: personId
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: ID человека
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PersonUpdate'
+      responses:
+        '200':
+          description: Обновленные данные человека
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Person'
+        '401':
+          description: Не авторизован
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Unauthorized'
+        '403':
+          description: Нет прав на редактирование
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Forbidden'
+        '404':
+          description: Человек не найден
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotFound'
+        '400':
+          description: Некорректные данные
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    delete:
+      tags:
+        - Person
+      summary: Удаление записи о человеке
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: personId
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: ID человека
+      responses:
+        '200':
+          description: Запись удалена
+          content: {}
+        '401':
+          description: Не авторизован
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Unauthorized'
+        '403':
+          description: Нет прав на удаление
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Forbidden'
+        '404':
+          description: Человек не найден
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotFound'
+
+  # ========== Relation ==========
+  /relation:
+    post:
+      tags:
+        - Relation
+      summary: Создание новой связи между людьми
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RelationCreate'
+      responses:
+        '200':
+          description: Созданная связь
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Relation'
+        '401':
+          description: Не авторизован
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Unauthorized'
+        '400':
+          description: Некорректные данные
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /relation/{relationId}:
+    get:
+      tags:
+        - Relation
+      summary: Получение информации о связи по ID
+      parameters:
+        - name: relationId
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: ID связи
+      responses:
+        '200':
+          description: Данные связи
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Relation'
+        '404':
+          description: Связь не найдена
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotFound'
+
+    put:
+      tags:
+        - Relation
+      summary: Обновление связи
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: relationId
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: ID связи
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RelationUpdate'
+      responses:
+        '200':
+          description: Обновленная связь
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Relation'
+        '401':
+          description: Не авторизован
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Unauthorized'
+        '403':
+          description: Нет прав на редактирование
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Forbidden'
+        '404':
+          description: Связь не найдена
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotFound'
+        '400':
+          description: Некорректные данные
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    delete:
+      tags:
+        - Relation
+      summary: Удаление связи
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: relationId
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: ID связи
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              description: Может содержать дополнительные параметры для удаления (если нужно)
+              example: {}
+      responses:
+        '200':
+          description: Связь удалена
+          content: {}
+        '401':
+          description: Не авторизован
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Unauthorized'
+        '403':
+          description: Нет прав на удаление
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Forbidden'
+        '404':
+          description: Связь не найдена
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotFound'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    Error:
+      type: object
+      properties:
+        message:
+          type: string
+          example: "Ошибка авторизации"
+    Unauthorized:
+      type: object
+      properties:
+        message:
+          type: string
+          example: "Не авторизован"
+    Forbidden:
+      type: object
+      properties:
+        message:
+          type: string
+          example: "Нет прав доступа"
+    NotFound:
+      type: object
+      properties:
+        message:
+          type: string
+          example: "Ресурс не найден"
+
+    # Авторизация
+    LoginRequest:
+      type: object
+      required:
+        - login
+        - password
+      properties:
+        login:
+          type: string
+          example: "user123"
+        password:
+          type: string
+          format: password
+          example: "password123"
+    AuthResponse:
+      type: object
+      properties:
+        token:
+          type: string
+          example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+        refreshToken:
+          type: string
+          example: "dGhpcyBpcyBhIHJlZnJlc2ggdG9rZW4="
+    RegisterConflict:
+      type: object
+      properties:
+        message:
+          type: string
+          example: "Пользователь с таким именем уже существует"
+
+    # Profile
+    Profile:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        login:
+          type: string
+          example: "user123"
+        email:
+          type: string
+          example: "user@example.com"
+    ProfileUpdate:
+      type: object
+      properties:
+        password:
+          type: string
+          format: password
+          example: "newpassword123"
+        email:
+          type: string
+          example: "newemail@example.com"
+
+    # Person
+    Person:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 10
+        name:
+          type: string
+          example: "Иван"
+        gender:
+          type: string
+          enum: [male, female, other]
+          example: "male"
+        birthDate:
+          type: string
+          format: date
+          example: "1990-01-01"
+    PersonCreate:
+      type: object
+      required:
+        - name
+      properties:
+        name:
+          type: string
+          example: "Петр"
+    PersonUpdate:
+      type: object
+      properties:
+        gender:
+          type: string
+          enum: [male, female, other]
+          example: "female"
+
+    # Relation
+    Relation:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 100
+        type:
+          type: string
+          enum: [parent, child, spouse]
+          example: "parent"
+        fromPersonId:
+          type: integer
+          example: 10
+        toPersonId:
+          type: integer
+          example: 11
+    RelationCreate:
+      type: object
+      required:
+        - type
+        - fromPersonId
+        - toPersonId
+      properties:
+        type:
+          type: string
+          enum: [parent, child, spouse]
+          example: "parent"
+        fromPersonId:
+          type: integer
+          example: 10
+        toPersonId:
+          type: integer
+          example: 11
+    RelationUpdate:
+      type: object
+      properties:
+        type:
+          type: string
+          enum: [parent, child, spouse]
+          example: "spouse"
+
+    # Search
+    UserSearchResult:
+      type: array
+      items:
+        type: object
+        properties:
+          id:
+            type: integer
+          login:
+            type: string
