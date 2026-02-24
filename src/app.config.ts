@@ -19,3 +19,4 @@ export const FIREBASE_SERVICE_ACCOUNT: ServiceAccount = {
 };
 
 export const USER_DEFAULT_ROLE: string = env.get('USER_DEFAULT_ROLE').required().asString();
+export const USER_ADMIN_ROLE: string = env.get('USER_ADMIN_ROLE').required().asString();

@@ -1,4 +1,4 @@
-export interface JwtAccessToken {
+export interface JwtAccessTokenPayload {
   uid: string;
   login: string;
   roleId: string;

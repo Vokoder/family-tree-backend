@@ -5,12 +5,12 @@ import { logoutService } from './logout.service.ts';
 import { NO_REFRESH_TOKEN } from '#constants/errors.constants.ts';
 
 export const logoutController = async (req: Request, res: Response): Promise<void> => {
-  const jwtAccessToken = res.locals.user;
+  const JwtAccessTokenPayload = res.locals.user;
   const { body: { jwtRefreshToken } = {} } = req;
-  if (!jwtAccessToken || !jwtRefreshToken) {
+  if (!JwtAccessTokenPayload || !jwtRefreshToken) {
     throw new HttpError(500, NO_REFRESH_TOKEN);
   }
 
-  await logoutService(jwtAccessToken, jwtRefreshToken);
+  await logoutService(JwtAccessTokenPayload, jwtRefreshToken);
   res.json({ status: 200 });
 };

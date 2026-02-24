@@ -3,14 +3,18 @@ import { FIREBASE_SERVICE_ACCOUNT, USER_DEFAULT_ROLE } from '#app.config.ts';
 import type { FirebaseUser, User } from '#shared/types/user.type.ts';
 import { HttpError } from '#utils/http-error.utils.ts';
 import { Timestamp } from 'firebase-admin/firestore';
-import type { RefreshToken } from '#shared/types/refreshToken.type.ts';
+import type { RefreshToken } from '#shared/types/refresh-token.type.ts';
 import {
   ADD_REFRESH_TOKEN_FIREBASE_ERROR,
   CREATE_USER_FIREBASE_ERROR,
   DELETE_REFRESH_TOKEN_FIREBASE_ERROR,
   GET_USER_FIREBASE_ERROR,
-  UPDATE_REFRESH_TOKEN_FIREBASE_ERROR
+  NO_DATA_TO_UPDATE,
+  UPDATE_REFRESH_TOKEN_FIREBASE_ERROR,
+  UPDATE_USER_FIREBASE_ERROR,
+  USER_NOT_FOUND
 } from '#constants/errors.constants.ts';
+import { firebaseUserToUser } from '#utils/user-converter.utils.ts';
 
 admin.initializeApp({
   credential: admin.credential.cert(FIREBASE_SERVICE_ACCOUNT),
@@ -89,11 +93,7 @@ export const getUserByLogin = async (login: string): Promise<User | null> => {
     }
 
     const firebaseUser = snap.docs[0].data() as FirebaseUser;
-    const user: User = {
-      id: snap.docs[0].id,
-      ...firebaseUser,
-      createdAt: firebaseUser.createdAt.toDate(),
-    }
+    const user = firebaseUserToUser(snap.docs[0].id, firebaseUser);
     return user;
   } catch (error) {
     throw error instanceof Error ? error : new Error(`${GET_USER_FIREBASE_ERROR} ${error}`);
@@ -108,11 +108,7 @@ export const getUserById = async (uid: string): Promise<User | null> => {
     }
 
     const firebaseUser = snap.data() as FirebaseUser;
-    const user: User = {
-      id: snap.id,
-      ...firebaseUser,
-      createdAt: firebaseUser.createdAt.toDate(),
-    }
+    const user = firebaseUserToUser(snap.id, firebaseUser);
     return user;
   } catch (error) {
     throw error instanceof Error ? error : new Error(`${GET_USER_FIREBASE_ERROR} ${error}`);
@@ -138,18 +134,37 @@ export const createUser = async (login: string, password: string): Promise<User>
       active: true,
       createdAt: Timestamp.fromDate(new Date()),
     };
-
     const userRef = await dataPoints.users().add(userData);
     const userSnapshot = await userRef.get();
-    const data: FirebaseUser = userSnapshot.data() as FirebaseUser;
-    const user: User = {
-      id: userSnapshot.id,
-      ...data,
-      createdAt: data.createdAt.toDate(),
-    }
-
+    const firebaseUser = userSnapshot.data() as FirebaseUser;
+    const user = firebaseUserToUser(userSnapshot.id, firebaseUser)
     return user;
   } catch (error) {
     throw error instanceof Error ? error : new Error(`${CREATE_USER_FIREBASE_ERROR} ${error}`);
   };
+}
+
+export const updateUser = async (uid: string, personId?: string, password?: string, active?: boolean): Promise<void> => {
+  if (personId === undefined && !password && active === undefined) {
+    throw new HttpError(400, NO_DATA_TO_UPDATE);
+  }
+
+  try {
+    const updates: Partial<User> = {};
+    if (personId !== undefined) {
+      updates.personId = personId;
+    }
+
+    if (password) {
+      updates.password = password;
+    }
+
+    if (active !== undefined) {
+      updates.active = active;
+    }
+
+    await dataPoints.user(uid).update({ updates });
+  } catch (error) {
+    throw error instanceof Error ? error : new Error(`${UPDATE_USER_FIREBASE_ERROR} ${error}`);
+  }
 }

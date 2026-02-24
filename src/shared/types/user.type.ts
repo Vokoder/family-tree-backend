@@ -1,4 +1,4 @@
-import type { DocumentReference, Timestamp } from "firebase-admin/firestore";
+import type { Timestamp } from "firebase-admin/firestore";
 
 export interface User {
   id: string;
@@ -17,4 +17,11 @@ export interface FirebaseUser {
   roleId: string;
   active: boolean;
   createdAt: Timestamp;
+}
+
+export interface UserOutput {
+  login: string;
+  personId?: string;
+  roleId: string;
+  createdAt: Date;
 }
