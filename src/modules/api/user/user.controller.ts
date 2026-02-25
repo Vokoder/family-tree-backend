@@ -2,8 +2,7 @@ import { HttpError } from "#utils/http-error.utils.ts"
 import type { Request, Response } from "express"
 import { deleteUserService, getUserService, updateUserService } from "./user.service.ts"
 import type { JwtAccessTokenPayload } from "#shared/types/jwt.type.ts"
-import { EMPTY_REQUEST_BODY } from "#constants/errors.constants.ts"
-import { userToUserOutput } from "#utils/user-converter.utils.ts"
+import { EMPTY_REQUEST_BODY, MISSING_QUERY_PARAMETERS } from "#constants/errors.constants.ts"
 
 export const getMyUserController = async (req: Request, res: Response): Promise<void> => {
   const jwtPayload: JwtAccessTokenPayload = res.locals.user;
@@ -14,7 +13,7 @@ export const getMyUserController = async (req: Request, res: Response): Promise<
 export const getUserController = async (req: Request, res: Response): Promise<void> => {
   const uid = req.params.uid;
   if (typeof uid !== 'string') {
-    throw new HttpError(400, 'Invalid or missing UID parameter');
+    throw new HttpError(400, MISSING_QUERY_PARAMETERS);
   }
 
   const user = await getUserService(uid);

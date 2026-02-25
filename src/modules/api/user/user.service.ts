@@ -2,22 +2,22 @@ import { USER_ADMIN_ROLE } from "#app.config.ts"
 import { NO_PERMISSIONS, USER_NOT_FOUND } from "#constants/errors.constants.ts"
 import { getUserById, updateUser } from "#firebase-client.ts"
 import type { JwtAccessTokenPayload } from "#shared/types/jwt.type.ts"
-import type { UserOutput } from "#shared/types/user.type.ts"
+import type { UserDto } from "#shared/types/user.type.ts"
 import { HttpError } from "#utils/http-error.utils.ts"
-import { userToUserOutput } from "#utils/user-converter.utils.ts"
+import { userToUserDto } from "#utils/user-converter.utils.ts"
 import argon2 from "argon2"
 
-export const getUserService = async (uid: string): Promise<UserOutput> => {
+export const getUserService = async (uid: string): Promise<UserDto> => {
   const user = await getUserById(uid);
   if (!user) {
     throw new HttpError(404, USER_NOT_FOUND);
   }
 
-  const userOutput = userToUserOutput(user);
-  return userOutput;
+  const UserDto = userToUserDto(user);
+  return UserDto;
 }
 
-export const updateUserService = async (jwtPayload: JwtAccessTokenPayload, uid: string, password?: string, personId?: string): Promise<UserOutput> => {
+export const updateUserService = async (jwtPayload: JwtAccessTokenPayload, uid: string, password?: string, personId?: string): Promise<UserDto> => {
   if (uid === jwtPayload.uid || jwtPayload.roleId === USER_ADMIN_ROLE) {
     const user = await getUserById(uid);
     if (!user) {
@@ -41,8 +41,13 @@ export const updateUserService = async (jwtPayload: JwtAccessTokenPayload, uid: 
       await updateUser(uid, personId, hashedPassword);
     }
 
-    const userOutput = userToUserOutput(user);
-    return userOutput;
+    const updatedUser = await getUserById(uid);
+    if (!updatedUser) {
+      throw new HttpError(404, USER_NOT_FOUND);
+    }
+
+    const UserDto = userToUserDto(updatedUser);
+    return UserDto;
   }
 
   throw new HttpError(403, NO_PERMISSIONS);

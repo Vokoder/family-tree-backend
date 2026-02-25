@@ -1,10 +1,11 @@
 import { Router } from "express";
-import { createPersonController, deletePersonController, getPersonController, updatePersonController } from "./person.controller.ts";
+import { createPersonController, deletePersonController, getPersonController, getPersonsController, updatePersonController } from "./person.controller.ts";
 import { authenticationTokenProtectedMiddleware } from "#shared/middleware/check-jwt.middleware.ts";
 
 export const personRouter = Router();
 
-personRouter.get('/', getPersonController);
-personRouter.put('/', authenticationTokenProtectedMiddleware, updatePersonController);
+personRouter.get('/', getPersonsController);
+personRouter.get('/:personId', getPersonController);
+personRouter.put('/:personId', authenticationTokenProtectedMiddleware, updatePersonController);
 personRouter.post('/', authenticationTokenProtectedMiddleware, createPersonController);
-personRouter.delete('/', authenticationTokenProtectedMiddleware, deletePersonController);
+personRouter.delete('/:personId', authenticationTokenProtectedMiddleware, deletePersonController);

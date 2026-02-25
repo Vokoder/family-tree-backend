@@ -2,7 +2,7 @@ import admin from 'firebase-admin';
 import { FIREBASE_SERVICE_ACCOUNT, USER_DEFAULT_ROLE } from '#app.config.ts';
 import type { FirebaseUser, User } from '#shared/types/user.type.ts';
 import { HttpError } from '#utils/http-error.utils.ts';
-import { Timestamp } from 'firebase-admin/firestore';
+import { Timestamp, type UpdateData } from 'firebase-admin/firestore';
 import type { RefreshToken } from '#shared/types/refresh-token.type.ts';
 import {
   ADD_REFRESH_TOKEN_FIREBASE_ERROR,
@@ -12,9 +12,11 @@ import {
   NO_DATA_TO_UPDATE,
   UPDATE_REFRESH_TOKEN_FIREBASE_ERROR,
   UPDATE_USER_FIREBASE_ERROR,
-  USER_NOT_FOUND
 } from '#constants/errors.constants.ts';
 import { firebaseUserToUser } from '#utils/user-converter.utils.ts';
+import type { FirebasePerson, Person, } from '#shared/types/person.type.ts';
+import { firebasePersonToPerson, personToFirebasePerson } from '#utils/person-converter.utils.ts';
+import { removeUndefined } from '#utils/remove-undefined.utils.ts';
 
 admin.initializeApp({
   credential: admin.credential.cert(FIREBASE_SERVICE_ACCOUNT),
@@ -43,7 +45,7 @@ const dataPoints = {
   refreshTokens: () => dataPoint('refreshTokens'),
 };
 
-// JWT tokens
+//  JWT tokens
 
 export const addRefreshToken = async (token: RefreshToken) => {
   try {
@@ -83,7 +85,7 @@ export const deleteRefreshToken = async (uid: string, token: string) => {
   }
 }
 
-// users
+//  users
 
 export const getUserByLogin = async (login: string): Promise<User | null> => {
   try {
@@ -129,7 +131,7 @@ export const createUser = async (login: string, password: string): Promise<User>
 
     const userData: FirebaseUser = {
       login,
-      password: password,
+      password,
       roleId: defaultRoleSnapshot.docs[0].id,
       active: true,
       createdAt: Timestamp.fromDate(new Date()),
@@ -150,20 +152,77 @@ export const updateUser = async (uid: string, personId?: string, password?: stri
   }
 
   try {
-    const updates: Partial<User> = {};
-    if (personId !== undefined) {
-      updates.personId = personId;
+    const updates: UpdateData<Partial<User>> = {
+      ...(personId !== undefined ? { personId } : {}),
+      ...(password !== undefined ? { password } : {}),
+      ...(active !== undefined ? { active } : {})
+    };
+    await dataPoints.user(uid).update(updates);
+  } catch (error) {
+    throw error instanceof Error ? error : new Error(`${UPDATE_USER_FIREBASE_ERROR} ${error}`);
+  }
+}
+
+//  persons
+
+export const getPersonById = async (personId: string): Promise<Person | null> => {
+  try {
+    const snap = await dataPoints.person(personId).get();
+    if (!snap.exists) {
+      return null;
     }
 
-    if (password) {
-      updates.password = password;
-    }
+    const firebasePerson = snap.data() as FirebasePerson;
+    const person = firebasePersonToPerson(personId, firebasePerson);
+    return person;
+  } catch (error) {
+    throw error instanceof Error ? error : new Error(`${UPDATE_USER_FIREBASE_ERROR} ${error}`);
+  }
+}
 
-    if (active !== undefined) {
-      updates.active = active;
-    }
+export const getPersons = async (): Promise<Person[] | null> => {
+  try {
 
-    await dataPoints.user(uid).update({ updates });
+  } catch (error) {
+    throw error instanceof Error ? error : new Error(`${UPDATE_USER_FIREBASE_ERROR} ${error}`);
+  }
+}
+
+export const createPerson = async (person: Person): Promise<Person> => {
+  try {
+    const firebasePerson = personToFirebasePerson(person);
+    const personRef = await dataPoints.persons().add(firebasePerson);
+    const createdPersonSnapshot = await personRef.get();
+    const createdFirebasePerson = createdPersonSnapshot.data() as FirebasePerson;
+    const createdPerson = firebasePersonToPerson(createdPersonSnapshot.id, createdFirebasePerson);
+    return createdPerson;
+  } catch (error) {
+    throw error instanceof Error ? error : new Error(`${UPDATE_USER_FIREBASE_ERROR} ${error}`);
+  }
+}
+
+export const updatePerson = async (personId: string, personDto: Partial<Person>): Promise<void> => {
+  try {
+    const clearedFields = removeUndefined(personDto);
+    const { id, dateOfBirthday, dateOfDeath, ...otherFields } = clearedFields;
+    const updates: UpdateData<Partial<FirebasePerson>> = {
+      ...otherFields,
+      ...(dateOfBirthday !== undefined ? { dateOfBirthday: Timestamp.fromDate(dateOfBirthday) } : {}),
+      ...(dateOfDeath !== undefined ? { dateOfDeath: Timestamp.fromDate(dateOfDeath) } : {}),
+    };
+    if (Object.keys(updates).length === 0) {
+      throw new HttpError(400, NO_DATA_TO_UPDATE);
+    }
+    
+    await dataPoints.person(personId).update(updates);
+  } catch (error) {
+    throw error instanceof Error ? error : new Error(`${UPDATE_USER_FIREBASE_ERROR} ${error}`);
+  }
+}
+
+export const deletePerson = async (personId: string): Promise<void> => {
+  try {
+    await dataPoints.person(personId).delete();
   } catch (error) {
     throw error instanceof Error ? error : new Error(`${UPDATE_USER_FIREBASE_ERROR} ${error}`);
   }

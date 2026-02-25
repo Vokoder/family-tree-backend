@@ -1,18 +1,61 @@
+import { EMPTY_REQUEST_BODY, MISSING_QUERY_PARAMETERS, MISSING_REQUIRED_REQUEST_BODY } from "#constants/errors.constants.ts";
 import { HttpError } from "#utils/http-error.utils.ts"
 import type { Request, Response } from "express"
+import { createPersonService, deletePersonService, getPersonService, updatePersonService } from "./person.service.ts";
+import { personFields, personRequiredFields, type Person } from "#shared/types/person.type.ts";
+import type { JwtAccessTokenPayload } from "#shared/types/jwt.type.ts";
 
 export const getPersonController = async (req: Request, res: Response): Promise<void> => {
+  const personId = req.params.personId;
+  if (typeof personId !== 'string') {
+    throw new HttpError(400, MISSING_QUERY_PARAMETERS);
+  }
+
+  const person = await getPersonService(personId);
+  res.json(person);
+}
+
+export const getPersonsController = async (req: Request, res: Response): Promise<void> => {
+  //получить по фильтру
   throw new HttpError(501, 'not yet implemented');
 }
 
 export const updatePersonController = async (req: Request, res: Response): Promise<void> => {
-  throw new HttpError(501, 'not yet implemented');
+  const jwtPayload: JwtAccessTokenPayload = res.locals.user;
+  const personId = req.params.personId;
+  if (typeof personId !== 'string') {
+    throw new HttpError(400, MISSING_QUERY_PARAMETERS);
+  }
+
+  const personDto: Partial<Person> = req.body;
+  const hasAnyField = personFields.some(field => personDto[field] !== undefined);
+  if (!hasAnyField) {
+    throw new HttpError(400, `${EMPTY_REQUEST_BODY} one or more of ${personFields.toString()}`);
+  }
+
+  const person = await updatePersonService(jwtPayload, personId, personDto);
+  res.json(person);
 }
 
 export const createPersonController = async (req: Request, res: Response): Promise<void> => {
-  throw new HttpError(501, 'not yet implemented');
+  const jwtPayload: JwtAccessTokenPayload = res.locals.user;
+  const personDto: Partial<Person> = req.body;
+  const hasRequiredFields = personRequiredFields.every(field => personDto[field] !== undefined);
+  if (!hasRequiredFields) {
+    throw new HttpError(400, `${MISSING_REQUIRED_REQUEST_BODY} ${personRequiredFields.toString()}`);
+  }
+
+  const person = await createPersonService(jwtPayload.uid, personDto);
+  res.json(person);
 }
 
 export const deletePersonController = async (req: Request, res: Response): Promise<void> => {
-  throw new HttpError(501, 'not yet implemented');
+  const jwtPayload: JwtAccessTokenPayload = res.locals.user;
+  const personId = req.params.personId;
+  if (typeof personId !== 'string') {
+    throw new HttpError(400, MISSING_QUERY_PARAMETERS);
+  }
+
+  await deletePersonService(jwtPayload, personId);
+  res.status(200);
 }

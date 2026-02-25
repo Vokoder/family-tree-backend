@@ -19,7 +19,7 @@ export interface FirebaseUser {
   createdAt: Timestamp;
 }
 
-export interface UserOutput {
+export interface UserDto {
   login: string;
   personId?: string;
   roleId: string;

@@ -1,4 +1,4 @@
-import type { FirebaseUser, User, UserOutput } from "#shared/types/user.type.ts";
+import type { FirebaseUser, User, UserDto } from "#shared/types/user.type.ts";
 
 export const firebaseUserToUser = (uid: string, firebaseUser: FirebaseUser): User => {
   const user: User = {
@@ -9,12 +9,12 @@ export const firebaseUserToUser = (uid: string, firebaseUser: FirebaseUser): Use
   return user;
 }
 
-export const userToUserOutput = (user: User): UserOutput => {
-  const userOutput: UserOutput = {
+export const userToUserDto = (user: User): UserDto => {
+  const UserDto: UserDto = {
     login: user.login,
     roleId: user.roleId,
     createdAt: user.createdAt,
     ...(user.personId !== undefined && { personId: user.personId }),
   };
-  return userOutput;
+  return UserDto;
 }
