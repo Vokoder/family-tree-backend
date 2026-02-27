@@ -2,25 +2,37 @@ import admin from 'firebase-admin';
 import { FIREBASE_SERVICE_ACCOUNT, USER_DEFAULT_ROLE } from '#app.config.ts';
 import type { FirebaseUser, User } from '#shared/types/user.type.ts';
 import { HttpError } from '#utils/http-error.utils.ts';
-import { Timestamp, type UpdateData } from 'firebase-admin/firestore';
+import { Query, Timestamp, type UpdateData } from 'firebase-admin/firestore';
 import type { RefreshToken } from '#shared/types/refresh-token.type.ts';
 import {
   ADD_REFRESH_TOKEN_FIREBASE_ERROR,
+  CREATE_PERSON_FIREBASE_ERROR,
+  CREATE_RELATION_FIREBASE_ERROR,
   CREATE_USER_FIREBASE_ERROR,
+  DELETE_PERSON_FIREBASE_ERROR,
   DELETE_REFRESH_TOKEN_FIREBASE_ERROR,
+  DELETE_RELATION_FIREBASE_ERROR,
+  GET_PERSON_FIREBASE_ERROR,
+  GET_RELATION_FIREBASE_ERROR,
   GET_USER_FIREBASE_ERROR,
+  LOGIN_ALREADY_EXISTS,
   NO_DATA_TO_UPDATE,
+  NO_DEFAULT_USER_ROLE,
+  UPDATE_PERSON_FIREBASE_ERROR,
   UPDATE_REFRESH_TOKEN_FIREBASE_ERROR,
+  UPDATE_RELATION_FIREBASE_ERROR,
   UPDATE_USER_FIREBASE_ERROR,
 } from '#constants/errors.constants.ts';
 import { firebaseUserToUser } from '#utils/user-converter.utils.ts';
-import type { FirebasePerson, Person, } from '#shared/types/person.type.ts';
+import type { FirebasePerson, FirebasePersonFilter, Person, PersonDto, PersonFilters } from '#shared/types/person.type.ts';
 import { firebasePersonToPerson, personToFirebasePerson } from '#utils/person-converter.utils.ts';
 import { removeUndefined } from '#utils/remove-undefined.utils.ts';
+import type { FirebaseRelation, FirebaseRelationFilter, Relation, RelationDto } from '#shared/types/relation.type.ts';
 
 admin.initializeApp({
   credential: admin.credential.cert(FIREBASE_SERVICE_ACCOUNT),
 });
+const db = admin.firestore();
 
 export const firestore = admin.firestore();
 
@@ -40,6 +52,7 @@ const dataPoints = {
   person: (doc: string) => dataPointForOne('persons', doc),
   persons: () => dataPoint('persons'),
   roles: () => dataPoint('roles'),
+  relation: (doc: string) => dataPointForOne('relations', doc),
   relations: () => dataPoint('relations'),
   typesOfRelations: () => dataPoint('typesOfRelations'),
   refreshTokens: () => dataPoint('refreshTokens'),
@@ -50,11 +63,10 @@ const dataPoints = {
 export const addRefreshToken = async (token: RefreshToken) => {
   try {
     await dataPoints.refreshTokens().add({ token });
-  }
-  catch (error) {
+  } catch (error) {
     throw error instanceof Error ? error : new Error(`${ADD_REFRESH_TOKEN_FIREBASE_ERROR} ${error}`);
   }
-}
+};
 
 export const extendRefreshToken = async (oldToken: string, token: RefreshToken) => {
   try {
@@ -65,11 +77,10 @@ export const extendRefreshToken = async (oldToken: string, token: RefreshToken) 
 
     tokenSnapshot.docs[0].ref.delete();
     addRefreshToken(token);
-  }
-  catch (error) {
+  } catch (error) {
     throw error instanceof Error ? error : new Error(`${UPDATE_REFRESH_TOKEN_FIREBASE_ERROR} ${error}`);
   }
-}
+};
 
 export const deleteRefreshToken = async (uid: string, token: string) => {
   try {
@@ -79,17 +90,16 @@ export const deleteRefreshToken = async (uid: string, token: string) => {
     }
 
     tokenSnapshot.docs[0].ref.delete();
-  }
-  catch (error) {
+  } catch (error) {
     throw error instanceof Error ? error : new Error(`${DELETE_REFRESH_TOKEN_FIREBASE_ERROR} ${error}`);
   }
-}
+};
 
 //  users
 
 export const getUserByLogin = async (login: string): Promise<User | null> => {
   try {
-    const snap = await dataPoints.users().where('login', '==', login).where('active', '==', true).get();
+    const snap = await dataPoints.users().where('login', '==', login).where('active', '==', true).limit(1).get();
     if (snap.empty || !snap.docs[0]) {
       return null;
     }
@@ -115,36 +125,40 @@ export const getUserById = async (uid: string): Promise<User | null> => {
   } catch (error) {
     throw error instanceof Error ? error : new Error(`${GET_USER_FIREBASE_ERROR} ${error}`);
   }
-}
+};
 
 export const createUser = async (login: string, password: string): Promise<User> => {
   try {
-    const exists = await getUserByLogin(login);
-    if (exists) {
-      throw new HttpError(500, 'exists')
-    }
+    const user = await db.runTransaction(async (transaction) => {
+      const userQuery = dataPoints.users().where('login', '==', login).where('active', '==', true).limit(1);
+      const existsCheckSnapshot = await transaction.get(userQuery);
+      if (!existsCheckSnapshot.empty) {
+        throw new HttpError(400, LOGIN_ALREADY_EXISTS);
+      }
 
-    const defaultRoleSnapshot = await dataPoints.roles().where('role', '==', USER_DEFAULT_ROLE).limit(1).get();
-    if (defaultRoleSnapshot.empty || !defaultRoleSnapshot.docs[0]) {
-      throw new HttpError(403, 'no default role');
-    }
+      const roleQuery = dataPoints.roles().where('role', '==', USER_DEFAULT_ROLE).limit(1);
+      const defaultRoleSnapshot = await transaction.get(roleQuery);
+      if (defaultRoleSnapshot.empty || !defaultRoleSnapshot.docs[0]) {
+        throw new HttpError(500, NO_DEFAULT_USER_ROLE);
+      }
 
-    const userData: FirebaseUser = {
-      login,
-      password,
-      roleId: defaultRoleSnapshot.docs[0].id,
-      active: true,
-      createdAt: Timestamp.fromDate(new Date()),
-    };
-    const userRef = await dataPoints.users().add(userData);
-    const userSnapshot = await userRef.get();
-    const firebaseUser = userSnapshot.data() as FirebaseUser;
-    const user = firebaseUserToUser(userSnapshot.id, firebaseUser)
+      const roleId = defaultRoleSnapshot.docs[0].id;
+      const userRef = dataPoints.users().doc();
+      const userData: FirebaseUser = {
+        login,
+        password,
+        roleId,
+        active: true,
+        createdAt: admin.firestore.Timestamp.fromDate(new Date()),
+      };
+      transaction.set(userRef, userData);
+      return firebaseUserToUser(userRef.id, userData);
+    });
     return user;
   } catch (error) {
     throw error instanceof Error ? error : new Error(`${CREATE_USER_FIREBASE_ERROR} ${error}`);
-  };
-}
+  }
+};
 
 export const updateUser = async (uid: string, personId?: string, password?: string, active?: boolean): Promise<void> => {
   if (personId === undefined && !password && active === undefined) {
@@ -155,13 +169,13 @@ export const updateUser = async (uid: string, personId?: string, password?: stri
     const updates: UpdateData<Partial<User>> = {
       ...(personId !== undefined ? { personId } : {}),
       ...(password !== undefined ? { password } : {}),
-      ...(active !== undefined ? { active } : {})
+      ...(active !== undefined ? { active } : {}),
     };
     await dataPoints.user(uid).update(updates);
   } catch (error) {
     throw error instanceof Error ? error : new Error(`${UPDATE_USER_FIREBASE_ERROR} ${error}`);
   }
-}
+};
 
 //  persons
 
@@ -176,54 +190,155 @@ export const getPersonById = async (personId: string): Promise<Person | null> =>
     const person = firebasePersonToPerson(personId, firebasePerson);
     return person;
   } catch (error) {
-    throw error instanceof Error ? error : new Error(`${UPDATE_USER_FIREBASE_ERROR} ${error}`);
+    throw error instanceof Error ? error : new Error(`${GET_PERSON_FIREBASE_ERROR} ${error}`);
   }
-}
+};
 
-export const getPersons = async (): Promise<Person[] | null> => {
+export const getPersons = async (filters: FirebasePersonFilter): Promise<Person[] | null> => {
   try {
+    let query: Query = dataPoints.persons();
+    Object.entries(filters).forEach(([key, value]) => {
+      if (value === undefined) {
+        return;
+      }
 
+      if (key === 'keywords' && Array.isArray(value)) {
+        if (value.length === 1) {
+          query = query.where(key, 'array-contains', value[0]);
+        } else if (value.length > 1) {
+          query = query.where(key, 'array-contains-any', value);
+        }
+      } else {
+        query = query.where(key, '==', value);
+      }
+    });
+
+    const snapshot = await query.get();
+    const persons: Person[] = [];
+    snapshot.forEach((doc) => {
+      const data = doc.data() as FirebasePerson;
+      persons.push(firebasePersonToPerson(doc.id, data));
+    });
+
+    return persons;
   } catch (error) {
-    throw error instanceof Error ? error : new Error(`${UPDATE_USER_FIREBASE_ERROR} ${error}`);
+    throw error instanceof Error ? error : new Error(`${GET_PERSON_FIREBASE_ERROR} ${error}`);
   }
-}
+};
 
-export const createPerson = async (person: Person): Promise<Person> => {
+export const createPerson = async (personDto: PersonDto): Promise<Person> => {
   try {
+    const personRef = await dataPoints.persons().doc();
+    const person: Person = { ...personDto, id: personRef.id } as Person;
     const firebasePerson = personToFirebasePerson(person);
-    const personRef = await dataPoints.persons().add(firebasePerson);
-    const createdPersonSnapshot = await personRef.get();
-    const createdFirebasePerson = createdPersonSnapshot.data() as FirebasePerson;
-    const createdPerson = firebasePersonToPerson(createdPersonSnapshot.id, createdFirebasePerson);
-    return createdPerson;
+    personRef.set(firebasePerson);
+    return person;
   } catch (error) {
-    throw error instanceof Error ? error : new Error(`${UPDATE_USER_FIREBASE_ERROR} ${error}`);
+    throw error instanceof Error ? error : new Error(`${CREATE_PERSON_FIREBASE_ERROR} ${error}`);
   }
-}
+};
 
-export const updatePerson = async (personId: string, personDto: Partial<Person>): Promise<void> => {
+export const updatePerson = async (personId: string, personDto: PersonDto): Promise<void> => {
   try {
-    const clearedFields = removeUndefined(personDto);
-    const { id, dateOfBirthday, dateOfDeath, ...otherFields } = clearedFields;
+    const { id, dateOfBirthday, dateOfDeath, ...clearedFields } = removeUndefined(personDto);
     const updates: UpdateData<Partial<FirebasePerson>> = {
-      ...otherFields,
+      ...clearedFields,
       ...(dateOfBirthday !== undefined ? { dateOfBirthday: Timestamp.fromDate(dateOfBirthday) } : {}),
       ...(dateOfDeath !== undefined ? { dateOfDeath: Timestamp.fromDate(dateOfDeath) } : {}),
     };
     if (Object.keys(updates).length === 0) {
       throw new HttpError(400, NO_DATA_TO_UPDATE);
     }
-    
+
     await dataPoints.person(personId).update(updates);
   } catch (error) {
-    throw error instanceof Error ? error : new Error(`${UPDATE_USER_FIREBASE_ERROR} ${error}`);
+    throw error instanceof Error ? error : new Error(`${UPDATE_PERSON_FIREBASE_ERROR} ${error}`);
   }
-}
+};
 
 export const deletePerson = async (personId: string): Promise<void> => {
   try {
     await dataPoints.person(personId).delete();
   } catch (error) {
-    throw error instanceof Error ? error : new Error(`${UPDATE_USER_FIREBASE_ERROR} ${error}`);
+    throw error instanceof Error ? error : new Error(`${DELETE_PERSON_FIREBASE_ERROR} ${error}`);
   }
-}
+};
+
+//  relations
+export const getRelationById = async (relationId: string): Promise<Relation | null> => {
+  try {
+    const relationSnap = await dataPoints.relation(relationId).get();
+    if (!relationSnap.exists) {
+      return null;
+    }
+
+    const firebaseRelation = relationSnap.data() as FirebaseRelation;
+    const relation: Relation = { id: relationSnap.id, ...firebaseRelation };
+    return relation;
+  } catch (error) {
+    throw error instanceof Error ? error : new Error(`${GET_RELATION_FIREBASE_ERROR} ${error}`);
+  }
+};
+
+export const getRelations = async (filter: FirebaseRelationFilter): Promise<Relation[] | null> => {
+  try {
+    let query: Query = dataPoints.relations();
+    Object.entries(filter).forEach(([key, value]) => {
+      if (value === undefined) {
+        return;
+      }
+
+      query = query.where(key, '==', value);
+    });
+
+    const snapshot = await query.get();
+    if (snapshot.empty) {
+      return null;
+    }
+
+    const relations: Relation[] = [];
+    snapshot.forEach((doc) => {
+      const data = doc.data() as FirebaseRelation;
+      relations.push({
+        id: doc.id,
+        ...data,
+      });
+    });
+
+    return relations;
+  } catch (error) {
+    throw error instanceof Error ? error : new Error(`${GET_RELATION_FIREBASE_ERROR} ${error}`);
+  }
+};
+
+export const createRelation = async (uid: string, firebaseRelation: FirebaseRelation): Promise<Relation> => {
+  try {
+    const relationRef = await dataPoints.relations().doc();
+    await relationRef.set(firebaseRelation);
+    const relation: Relation = { ...firebaseRelation, id: relationRef.id };
+    return relation;
+  } catch (error) {
+    throw error instanceof Error ? error : new Error(`${CREATE_RELATION_FIREBASE_ERROR} ${error}`);
+  }
+};
+
+export const updateRelation = async (relationId: string, relationDto: Partial<FirebaseRelation>): Promise<void> => {
+  try {
+    const updates: UpdateData<Partial<FirebaseRelation>> = removeUndefined(relationDto);
+    if (Object.keys(updates).length === 0) {
+      throw new HttpError(400, NO_DATA_TO_UPDATE);
+    }
+
+    await dataPoints.relation(relationId).update(updates);
+  } catch (error) {
+    throw error instanceof Error ? error : new Error(`${UPDATE_RELATION_FIREBASE_ERROR} ${error}`);
+  }
+};
+
+export const deleteRelation = async (relationId: string): Promise<void> => {
+  try {
+    await dataPoints.relation(relationId).delete();
+  } catch (error) {
+    throw error instanceof Error ? error : new Error(`${DELETE_RELATION_FIREBASE_ERROR} ${error}`);
+  }
+};

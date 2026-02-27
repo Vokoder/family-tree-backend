@@ -1,4 +1,4 @@
-import env from 'env-var'
+import env from 'env-var';
 import type { ServiceAccount } from 'firebase-admin';
 
 export const PORT: number = env.get('PORT').required().asIntPositive();

@@ -19,7 +19,7 @@ export const clearUserCache = (user_id: string): void => {
 export const deleteRequestCache = (req: Request): void => {
   const cacheKey = buildCacheKey(req);
   cache.del(cacheKey);
-}
+};
 
 interface CacheEntry {
   body: Parameters<Response['send']>[0];

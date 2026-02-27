@@ -1,5 +1,13 @@
-import { dateFields, simpleFields, type FirebasePerson, type Person } from "#shared/types/person.type.ts";
-import { Timestamp } from "firebase-admin/firestore";
+import {
+  dateFields,
+  simpleFields,
+  type FirebasePerson,
+  type FirebasePersonFilter,
+  type Person,
+  type PersonDto,
+  type PersonFilters,
+} from '#shared/types/person.type.ts';
+import { Timestamp } from 'firebase-admin/firestore';
 
 export const personToFirebasePerson = (person: Person): FirebasePerson => {
   const firebasePerson: Partial<FirebasePerson> = {};
@@ -19,11 +27,10 @@ export const personToFirebasePerson = (person: Person): FirebasePerson => {
   });
 
   return firebasePerson as FirebasePerson;
-
-}
+};
 
 export const firebasePersonToPerson = (personId: string, firebasePerson: FirebasePerson): Person => {
-  const person: Partial<Person> = { id: personId };
+  const person: PersonDto = { id: personId };
 
   simpleFields.forEach((field) => {
     const value = firebasePerson[field];
@@ -40,4 +47,25 @@ export const firebasePersonToPerson = (personId: string, firebasePerson: Firebas
   });
 
   return person as Person;
-}
+};
+
+export const personFilterToFirebasePersonFilter = (filters: PersonFilters): FirebasePersonFilter => {
+  const result: Partial<FirebasePerson> = {};
+  const entries = Object.entries(filters) as [keyof PersonFilters, unknown][];
+  for (const [key, value] of entries) {
+    if (value === undefined) {
+      continue;
+    }
+
+    const firebaseKey = key as keyof FirebasePerson;
+    if (key === 'dateOfBirthday' || key === 'dateOfDeath') {
+      if (value instanceof Date) {
+        Object.assign(result, { [firebaseKey]: Timestamp.fromDate(value) });
+      }
+    } else {
+      Object.assign(result, { [firebaseKey]: value });
+    }
+  }
+
+  return result as FirebasePersonFilter;
+};

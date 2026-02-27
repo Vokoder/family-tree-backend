@@ -1,6 +1,6 @@
-import { Router } from "express";
-import { deleteUserController, getMyUserController, getUserController, updateUserController } from "./user.controller.ts";
-import { authenticationTokenProtectedMiddleware } from "#shared/middleware/check-jwt.middleware.ts";
+import { Router } from 'express';
+import { deleteUserController, getMyUserController, getUserController, updateUserController } from './user.controller.ts';
+import { authenticationTokenProtectedMiddleware } from '#shared/middleware/check-jwt.middleware.ts';
 
 export const userRouter = Router();
 

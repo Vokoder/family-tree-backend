@@ -1,24 +1,31 @@
-import { USER_ADMIN_ROLE } from "#app.config.ts"
-import { NO_PERMISSIONS, PERSON_NOT_FOUND } from "#constants/errors.constants.ts"
-import { createPerson, deletePerson, getPersonById, updatePerson } from "#firebase-client.ts"
-import type { JwtAccessTokenPayload } from "#shared/types/jwt.type.ts"
-import type { Person } from "#shared/types/person.type.ts"
-import { HttpError } from "#utils/http-error.utils.ts"
+import { USER_ADMIN_ROLE } from '#app.config.ts';
+import { NO_PERMISSIONS, PERSON_NOT_FOUND } from '#constants/errors.constants.ts';
+import { createPerson, deletePerson, getPersonById, getPersons, updatePerson } from '#firebase-client.ts';
+import type { JwtAccessTokenPayload } from '#shared/types/jwt.type.ts';
+import type { Person, PersonDto, PersonFilters } from '#shared/types/person.type.ts';
+import { HttpError } from '#utils/http-error.utils.ts';
+import { personFilterToFirebasePersonFilter } from '#utils/person-converter.utils.ts';
 
-export const getPersonService = async (personId: string): Promise<Partial<Person>> => {
+export const getPersonService = async (personId: string): Promise<PersonDto> => {
   const person = await getPersonById(personId);
   if (!person) {
     throw new HttpError(404, PERSON_NOT_FOUND);
   }
 
   return person;
-}
+};
 
-export const getPersonsService = async (): Promise<Partial<Person[]> | null> => {
+export const getPersonsService = async (filters: PersonFilters): Promise<Partial<Person[]> | null> => {
+  const firebaseFilter = personFilterToFirebasePersonFilter(filters);
+  const persons = await getPersons(firebaseFilter);
+  return persons;
+};
 
-}
-
-export const updatePersonService = async (jwtPayload: JwtAccessTokenPayload, personId: string, personDto: Partial<Person>): Promise<Partial<Person>> => {
+export const updatePersonService = async (
+  jwtPayload: JwtAccessTokenPayload,
+  personId: string,
+  personDto: PersonDto,
+): Promise<PersonDto> => {
   const person = await getPersonById(personId);
   if (!person) {
     throw new HttpError(404, PERSON_NOT_FOUND);
@@ -35,13 +42,13 @@ export const updatePersonService = async (jwtPayload: JwtAccessTokenPayload, per
   }
 
   return updatedPerson;
-}
+};
 
-export const createPersonService = async (uid: string, personDto: Partial<Person>): Promise<Partial<Person>> => {
-  personDto.ownerId = uid;
-  const person = await createPerson(personDto as Person);
+export const createPersonService = async (jwtPayload: JwtAccessTokenPayload, personDto: PersonDto): Promise<PersonDto> => {
+  personDto.ownerId = jwtPayload.uid;
+  const person = await createPerson(personDto);
   return person;
-}
+};
 
 export const deletePersonService = async (jwtPayload: JwtAccessTokenPayload, personId: string): Promise<void> => {
   const person = await getPersonById(personId);
@@ -54,4 +61,4 @@ export const deletePersonService = async (jwtPayload: JwtAccessTokenPayload, per
   }
 
   await deletePerson(personId);
-}
+};

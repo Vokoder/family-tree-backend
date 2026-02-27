@@ -1,9 +1,16 @@
-import { EMPTY_REQUEST_BODY, MISSING_QUERY_PARAMETERS, MISSING_REQUIRED_REQUEST_BODY } from "#constants/errors.constants.ts";
-import { HttpError } from "#utils/http-error.utils.ts"
-import type { Request, Response } from "express"
-import { createPersonService, deletePersonService, getPersonService, updatePersonService } from "./person.service.ts";
-import { personFields, personRequiredFields, type Person } from "#shared/types/person.type.ts";
-import type { JwtAccessTokenPayload } from "#shared/types/jwt.type.ts";
+import { EMPTY_REQUEST_BODY, MISSING_QUERY_PARAMETERS, MISSING_REQUIRED_REQUEST_BODY } from '#constants/errors.constants.ts';
+import { HttpError } from '#utils/http-error.utils.ts';
+import type { Request, Response } from 'express';
+import {
+  createPersonService,
+  deletePersonService,
+  getPersonService,
+  getPersonsService,
+  updatePersonService,
+} from './person.service.ts';
+import { personFields, personRequiredFields, type PersonDto } from '#shared/types/person.type.ts';
+import type { JwtAccessTokenPayload } from '#shared/types/jwt.type.ts';
+import { personFilterSchema } from '#shared/schemas/person.schema.ts';
 
 export const getPersonController = async (req: Request, res: Response): Promise<void> => {
   const personId = req.params.personId;
@@ -13,12 +20,13 @@ export const getPersonController = async (req: Request, res: Response): Promise<
 
   const person = await getPersonService(personId);
   res.json(person);
-}
+};
 
 export const getPersonsController = async (req: Request, res: Response): Promise<void> => {
-  //получить по фильтру
-  throw new HttpError(501, 'not yet implemented');
-}
+  const filters = personFilterSchema.parse(req.query);
+  const persons = await getPersonsService(filters);
+  res.json(persons);
+};
 
 export const updatePersonController = async (req: Request, res: Response): Promise<void> => {
   const jwtPayload: JwtAccessTokenPayload = res.locals.user;
@@ -27,27 +35,27 @@ export const updatePersonController = async (req: Request, res: Response): Promi
     throw new HttpError(400, MISSING_QUERY_PARAMETERS);
   }
 
-  const personDto: Partial<Person> = req.body;
-  const hasAnyField = personFields.some(field => personDto[field] !== undefined);
+  const personDto: PersonDto = req.body;
+  const hasAnyField = personFields.some((field) => personDto[field] !== undefined);
   if (!hasAnyField) {
     throw new HttpError(400, `${EMPTY_REQUEST_BODY} one or more of ${personFields.toString()}`);
   }
 
   const person = await updatePersonService(jwtPayload, personId, personDto);
   res.json(person);
-}
+};
 
 export const createPersonController = async (req: Request, res: Response): Promise<void> => {
   const jwtPayload: JwtAccessTokenPayload = res.locals.user;
-  const personDto: Partial<Person> = req.body;
-  const hasRequiredFields = personRequiredFields.every(field => personDto[field] !== undefined);
+  const personDto: PersonDto = req.body;
+  const hasRequiredFields = personRequiredFields.every((field) => personDto[field] !== undefined);
   if (!hasRequiredFields) {
     throw new HttpError(400, `${MISSING_REQUIRED_REQUEST_BODY} ${personRequiredFields.toString()}`);
   }
 
-  const person = await createPersonService(jwtPayload.uid, personDto);
+  const person = await createPersonService(jwtPayload, personDto);
   res.json(person);
-}
+};
 
 export const deletePersonController = async (req: Request, res: Response): Promise<void> => {
   const jwtPayload: JwtAccessTokenPayload = res.locals.user;
@@ -58,4 +66,4 @@ export const deletePersonController = async (req: Request, res: Response): Promi
 
   await deletePersonService(jwtPayload, personId);
   res.status(200);
-}
+};

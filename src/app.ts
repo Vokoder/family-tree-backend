@@ -1,5 +1,5 @@
 import express, { json, urlencoded } from 'express';
-import 'dotenv/config'
+import 'dotenv/config';
 import helmet from 'helmet';
 import { router } from '#modules/route.ts';
 import { CORS_ORIGIN, PORT } from '#app.config.ts';
@@ -39,7 +39,7 @@ app.use(
   }),
 );
 app.use(json());
-app.use(cookieParser()); 
+app.use(cookieParser());
 app.use(urlencoded({ extended: true }));
 
 app.use('/', router);

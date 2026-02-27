@@ -1,6 +1,12 @@
-import { Router } from "express";
-import { createPersonController, deletePersonController, getPersonController, getPersonsController, updatePersonController } from "./person.controller.ts";
-import { authenticationTokenProtectedMiddleware } from "#shared/middleware/check-jwt.middleware.ts";
+import { Router } from 'express';
+import {
+  createPersonController,
+  deletePersonController,
+  getPersonController,
+  getPersonsController,
+  updatePersonController,
+} from './person.controller.ts';
+import { authenticationTokenProtectedMiddleware } from '#shared/middleware/check-jwt.middleware.ts';
 
 export const personRouter = Router();
 

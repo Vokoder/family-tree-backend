@@ -14,8 +14,8 @@ export const loginService = async (login: string, password: string): Promise<Jwt
     }
 
     const output = await createAuthSession(user);
-    return output
+    return output;
   }
-  
+
   throw new HttpError(401, WRONG_CREDENTIALS);
 };

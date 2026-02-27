@@ -1,10 +1,17 @@
-import { Router } from "express";
-import { createRelationController, deleteRelationController, getRelationController, updateRelationController } from "./relation.controller.ts";
-import { authenticationTokenProtectedMiddleware } from "#shared/middleware/check-jwt.middleware.ts";
+import { Router } from 'express';
+import {
+  createRelationController,
+  deleteRelationController,
+  getRelationController,
+  getRelationsController,
+  updateRelationController,
+} from './relation.controller.ts';
+import { authenticationTokenProtectedMiddleware } from '#shared/middleware/check-jwt.middleware.ts';
 
 export const relationRouter = Router();
 
-relationRouter.get('/', getRelationController);
-relationRouter.put('/', authenticationTokenProtectedMiddleware, updateRelationController);
+relationRouter.get('/', getRelationsController);
+relationRouter.get('/:relationId', getRelationController);
+relationRouter.put('/:relationId', authenticationTokenProtectedMiddleware, updateRelationController);
 relationRouter.post('/', authenticationTokenProtectedMiddleware, createRelationController);
 relationRouter.delete('/', authenticationTokenProtectedMiddleware, deleteRelationController);
