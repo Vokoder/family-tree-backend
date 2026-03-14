@@ -5,7 +5,7 @@ import type { RefreshToken } from '#shared/types/refresh-token.type.ts';
 import type { User } from '#shared/types/user.type.ts';
 import type { Request } from 'express';
 import { Timestamp } from 'firebase-admin/firestore';
-import * as jwt from 'jsonwebtoken';
+import jwt from 'jsonwebtoken';
 import type { Response } from 'express';
 
 // true = verified, false - unverified

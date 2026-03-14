@@ -11,8 +11,8 @@ export const registerController = async (req: Request, res: Response): Promise<v
     throw new HttpError(400, `${EMPTY_REQUEST_BODY} login & password`);
   }
 
-  const jwtTokens = await registerService(login, password);
-  setJwtCookies(res, jwtTokens);
+  const tokensWithUser = await registerService(login, password);
+  setJwtCookies(res, tokensWithUser.tokens);
 
-  res.json('ok');
+  res.json(tokensWithUser.userDto);
 };

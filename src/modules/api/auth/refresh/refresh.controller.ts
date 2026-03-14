@@ -10,7 +10,7 @@ export const refreshController = async (req: Request, res: Response): Promise<vo
     throw new HttpError(500, NO_REFRESH_TOKEN);
   }
 
-  const JwtTokens = await refreshService(jwtRefreshToken);
-  setJwtCookies(res, JwtTokens);
-  res.json('ok');
+  const tokensWithUser = await refreshService(jwtRefreshToken);
+  setJwtCookies(res, tokensWithUser.tokens);
+  res.json(tokensWithUser.userDto);
 };
