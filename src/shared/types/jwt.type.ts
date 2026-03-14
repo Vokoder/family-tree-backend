@@ -4,7 +4,7 @@ export interface JwtAccessTokenPayload {
   roleId: string;
 }
 
-export interface JwtOutput {
+export interface JwtTokens {
   accessToken: string;
   refreshToken: string;
 }

@@ -28,6 +28,7 @@ import type { FirebasePerson, FirebasePersonFilter, Person, PersonDto, PersonFil
 import { firebasePersonToPerson, personToFirebasePerson } from '#utils/person-converter.utils.ts';
 import { removeUndefined } from '#utils/remove-undefined.utils.ts';
 import type { FirebaseRelation, FirebaseRelationFilter, Relation, RelationDto } from '#shared/types/relation.type.ts';
+import dayjs from 'dayjs';
 
 admin.initializeApp({
   credential: admin.credential.cert(FIREBASE_SERVICE_ACCOUNT),
@@ -198,11 +199,15 @@ export const getPersons = async (filters: FirebasePersonFilter): Promise<Person[
   try {
     let query: Query = dataPoints.persons();
     Object.entries(filters).forEach(([key, value]) => {
-      if (value === undefined) {
+      if (value === undefined || value === null) {
         return;
       }
 
-      if (key === 'keywords' && Array.isArray(value)) {
+      if (key.startsWith('date') && value instanceof Timestamp) {
+        const startOfDay = dayjs(value.toDate()).startOf('day').toDate();
+        const endOfDay = dayjs(value.toDate()).endOf('day').toDate();
+        query = query.where(key, '>=', startOfDay).where(key, '<=', endOfDay);
+      } else if (key === 'keywords' && Array.isArray(value)) {
         if (value.length === 1) {
           query = query.where(key, 'array-contains', value[0]);
         } else if (value.length > 1) {
