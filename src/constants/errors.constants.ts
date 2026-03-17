@@ -17,6 +17,7 @@ export const INVALID_JWT_TOKEN = 'The refresh token is invalid';
 export const NO_DATA_TO_UPDATE = 'No fields to update';
 export const ERROR_CONVERTING_FIREBASE_USER_TO_USER = 'Error converting firebase user to user';
 export const ERROR_CONVERTING_USER_TO_USER_DTO = 'Error converting user to user dto';
+export const WRONG_PASSWORD = 'Wrong password';
 
 // Firebase
 export const ADD_REFRESH_TOKEN_FIREBASE_ERROR = 'Error writing refresh token to Firebase';

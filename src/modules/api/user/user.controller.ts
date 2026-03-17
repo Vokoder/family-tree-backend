@@ -22,12 +22,12 @@ export const getUserController = async (req: Request, res: Response): Promise<vo
 
 export const updateUserController = async (req: Request, res: Response): Promise<void> => {
   const jwtPayload: JwtAccessTokenPayload = res.locals.user;
-  const { body: { uid, password, personId } = {} } = req;
-  if (!password && !personId) {
+  const { body: { uid, oldPassword, password, personId } = {} } = req;
+  if (!(oldPassword && password) && !personId) {
     throw new HttpError(400, `${EMPTY_REQUEST_BODY} password or personId`);
   }
 
-  const user = await updateUserService(jwtPayload, uid ?? jwtPayload.uid, password, personId);
+  const user = await updateUserService(jwtPayload, uid ?? jwtPayload.uid, oldPassword, password, personId);
   res.json(user);
 };
 

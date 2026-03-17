@@ -12,6 +12,6 @@ export const relationRouter = Router();
 
 relationRouter.get('/', getRelationsController);
 relationRouter.get('/:relationId', getRelationController);
-relationRouter.put('/:relationId', authenticationTokenProtectedMiddleware, updateRelationController);
+relationRouter.post('/:relationId', authenticationTokenProtectedMiddleware, updateRelationController);
 relationRouter.post('/', authenticationTokenProtectedMiddleware, createRelationController);
 relationRouter.delete('/', authenticationTokenProtectedMiddleware, deleteRelationController);

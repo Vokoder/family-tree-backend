@@ -6,5 +6,5 @@ export const userRouter = Router();
 
 userRouter.get('/', authenticationTokenProtectedMiddleware, getMyUserController);
 userRouter.get('/:uid', getUserController);
-userRouter.put('/', authenticationTokenProtectedMiddleware, updateUserController);
+userRouter.post('/', authenticationTokenProtectedMiddleware, updateUserController);
 userRouter.delete('/', authenticationTokenProtectedMiddleware, deleteUserController);

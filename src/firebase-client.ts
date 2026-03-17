@@ -29,6 +29,7 @@ import { firebasePersonToPerson, personToFirebasePerson } from '#utils/person-co
 import { removeUndefined } from '#utils/remove-undefined.utils.ts';
 import type { FirebaseRelation, FirebaseRelationFilter, Relation, RelationDto } from '#shared/types/relation.type.ts';
 import dayjs from 'dayjs';
+import type { TypeOfRelation } from '#shared/types/types-of-relations.type.ts';
 
 admin.initializeApp({
   credential: admin.credential.cert(FIREBASE_SERVICE_ACCOUNT),
@@ -345,5 +346,23 @@ export const deleteRelation = async (relationId: string): Promise<void> => {
     await dataPoints.relation(relationId).delete();
   } catch (error) {
     throw error instanceof Error ? error : new Error(`${DELETE_RELATION_FIREBASE_ERROR} ${error}`);
+  }
+};
+
+export const getTypesOfRelations = async (): Promise<TypeOfRelation[] | null> => {
+  try {
+    const snap = await dataPoints.typesOfRelations().get();
+    if (snap.empty) {
+      return null;
+    }
+
+    const typesOfRelations: TypeOfRelation[] = [];
+    snap.forEach((doc) => {
+      const data = doc.data() as TypeOfRelation;
+      typesOfRelations.push(data);
+    });
+    return typesOfRelations;
+  } catch (error) {
+    throw error instanceof Error ? error : new Error(`${GET_USER_FIREBASE_ERROR} ${error}`);
   }
 };

@@ -1,5 +1,5 @@
 import { USER_ADMIN_ROLE } from '#app.config.ts';
-import { NO_PERMISSIONS, USER_NOT_FOUND } from '#constants/errors.constants.ts';
+import { NO_PERMISSIONS, USER_NOT_FOUND, WRONG_PASSWORD } from '#constants/errors.constants.ts';
 import { getUserById, updateUser } from '#firebase-client.ts';
 import type { JwtAccessTokenPayload } from '#shared/types/jwt.type.ts';
 import type { UserDto } from '#shared/types/user.type.ts';
@@ -20,6 +20,7 @@ export const getUserService = async (uid: string): Promise<UserDto> => {
 export const updateUserService = async (
   jwtPayload: JwtAccessTokenPayload,
   uid: string,
+  oldPassword?: string,
   password?: string,
   personId?: string,
 ): Promise<UserDto> => {
@@ -36,7 +37,12 @@ export const updateUserService = async (
       needsUpdate = true;
     }
 
-    if (password) {
+    if (oldPassword && password) {
+      const isCorrectPassword = await argon2.verify(user.password, oldPassword);
+      if (!isCorrectPassword) {
+        throw new HttpError(400, WRONG_PASSWORD);
+      }
+
       hashedPassword = await argon2.hash(password);
       user.password = hashedPassword;
       needsUpdate = true;

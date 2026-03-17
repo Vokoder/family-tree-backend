@@ -20,6 +20,7 @@ export interface FirebaseUser {
 }
 
 export interface UserDto {
+  id?: string;
   login: string;
   personId?: string;
   roleId: string;

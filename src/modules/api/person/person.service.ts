@@ -25,7 +25,7 @@ export const updatePersonService = async (
   jwtPayload: JwtAccessTokenPayload,
   personId: string,
   personDto: PersonDto,
-): Promise<PersonDto> => {
+): Promise<Person> => {
   const person = await getPersonById(personId);
   if (!person) {
     throw new HttpError(404, PERSON_NOT_FOUND);
@@ -44,7 +44,7 @@ export const updatePersonService = async (
   return updatedPerson;
 };
 
-export const createPersonService = async (jwtPayload: JwtAccessTokenPayload, personDto: PersonDto): Promise<PersonDto> => {
+export const createPersonService = async (jwtPayload: JwtAccessTokenPayload, personDto: PersonDto): Promise<Person> => {
   personDto.ownerId = jwtPayload.uid;
   const person = await createPerson(personDto);
   return person;

@@ -17,6 +17,7 @@ export const firebaseUserToUser = (uid: string, firebaseUser: FirebaseUser): Use
 export const userToUserDto = (user: User): UserDto => {
   try {
     const UserDto: UserDto = {
+      id: user.id,
       login: user.login,
       roleId: user.roleId,
       createdAt: user.createdAt,
