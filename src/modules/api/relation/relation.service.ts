@@ -1,9 +1,15 @@
 import { USER_ADMIN_ROLE } from '#app.config.ts';
-import { NO_PERMISSIONS, RELATION_ALREADY_EXISTS, RELATION_NOT_FOUND } from '#constants/errors.constants.ts';
+import {
+  MISSING_REQUIRED_REQUEST_BODY,
+  NO_PERMISSIONS,
+  RELATION_ALREADY_EXISTS,
+  RELATION_NOT_FOUND,
+} from '#constants/errors.constants.ts';
 import { createRelation, deleteRelation, getRelationById, getRelations, updateRelation } from '#firebase-client.ts';
 import type { JwtAccessTokenPayload } from '#shared/types/jwt.type.ts';
 import type { FirebaseRelation, Relation, RelationDto, RelationFilters } from '#shared/types/relation.type.ts';
 import { HttpError } from '#utils/http-error.utils.ts';
+import { normalizeRelationDto } from '#utils/normalize-relation.utils.ts';
 import { relationFilterToFirebaseRelationFilter } from '#utils/relation-converter.utils.ts';
 
 export const getRelationService = async (relationId: string): Promise<Relation> => {
@@ -35,7 +41,7 @@ export const updateRelationService = async (
     throw new HttpError(403, NO_PERMISSIONS);
   }
 
-  await updateRelation(relationId, relationDto);
+  await updateRelation(relationId, await normalizeRelationDto(relationId, relationDto));
   const updatedRelation = await getRelationById(relationId);
   if (!updatedRelation) {
     throw new HttpError(404, RELATION_NOT_FOUND);
@@ -45,12 +51,18 @@ export const updateRelationService = async (
 };
 
 export const createRelationService = async (jwtPayload: JwtAccessTokenPayload, relationDto: RelationDto): Promise<Relation> => {
-  const exists = await getRelationsService(relationDto);
+  if (!relationDto.relationId) {
+    throw new HttpError(400, `${MISSING_REQUIRED_REQUEST_BODY} relationId`);
+  }
+
+  relationDto.ownerId = jwtPayload.uid;
+  const normalizedRelationDto = await normalizeRelationDto(relationDto.relationId, relationDto);
+  const exists = await getRelationsService(normalizedRelationDto);
   if (!exists || !exists.length) {
     throw new HttpError(400, RELATION_ALREADY_EXISTS);
   }
 
-  const relation = await createRelation(jwtPayload.uid, relationDto as FirebaseRelation);
+  const relation = await createRelation(jwtPayload.uid, normalizedRelationDto as FirebaseRelation);
   return relation;
 };
 

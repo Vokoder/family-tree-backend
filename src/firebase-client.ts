@@ -14,6 +14,7 @@ import {
   DELETE_RELATION_FIREBASE_ERROR,
   GET_PERSON_FIREBASE_ERROR,
   GET_RELATION_FIREBASE_ERROR,
+  GET_TYPES_OF_RELATIONS_ERROR,
   GET_USER_FIREBASE_ERROR,
   LOGIN_ALREADY_EXISTS,
   NO_DATA_TO_UPDATE,
@@ -57,6 +58,7 @@ const dataPoints = {
   relation: (doc: string) => dataPointForOne('relations', doc),
   relations: () => dataPoint('relations'),
   typesOfRelations: () => dataPoint('typesOfRelations'),
+  typeOfRelation: (doc: string) => dataPointForOne('typesOfRelations', doc),
   refreshTokens: () => dataPoint('refreshTokens'),
 };
 
@@ -349,11 +351,11 @@ export const deleteRelation = async (relationId: string): Promise<void> => {
   }
 };
 
-export const getTypesOfRelations = async (): Promise<TypeOfRelation[] | null> => {
+export const getTypesOfRelations = async (): Promise<TypeOfRelation[]> => {
   try {
     const snap = await dataPoints.typesOfRelations().get();
     if (snap.empty) {
-      return null;
+      return [];
     }
 
     const typesOfRelations: TypeOfRelation[] = [];
@@ -363,6 +365,20 @@ export const getTypesOfRelations = async (): Promise<TypeOfRelation[] | null> =>
     });
     return typesOfRelations;
   } catch (error) {
-    throw error instanceof Error ? error : new Error(`${GET_USER_FIREBASE_ERROR} ${error}`);
+    throw error instanceof Error ? error : new Error(`${GET_TYPES_OF_RELATIONS_ERROR} ${error}`);
+  }
+};
+
+export const getTypeOfRelation = async (relationId: string): Promise<TypeOfRelation | null> => {
+  try {
+    const typeOfRelationSnap = await dataPoints.typeOfRelation(relationId).get();
+    if (!typeOfRelationSnap.exists) {
+      return null;
+    }
+
+    const typeOfRelation = typeOfRelationSnap.data() as TypeOfRelation;
+    return typeOfRelation;
+  } catch (error) {
+    throw error instanceof Error ? error : new Error(`${GET_TYPES_OF_RELATIONS_ERROR} ${error}`);
   }
 };
