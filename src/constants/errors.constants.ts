@@ -28,6 +28,7 @@ export const GET_USER_FIREBASE_ERROR = 'Error getting user from firebase';
 export const CREATE_USER_FIREBASE_ERROR = 'Error creating user in firebase';
 export const UPDATE_USER_FIREBASE_ERROR = 'Error updating user in firebase';
 export const GET_PERSON_FIREBASE_ERROR = 'Error getting person from firebase';
+export const GET_PERSONS_FIREBASE_ERROR = 'Error getting persons from firebase';
 export const CREATE_PERSON_FIREBASE_ERROR = 'Error creating perosn in firebase';
 export const UPDATE_PERSON_FIREBASE_ERROR = 'Error updating person in firebase';
 export const DELETE_PERSON_FIREBASE_ERROR = 'Error deleting person in Firebase';

@@ -1,3 +1,4 @@
+import { MISSING_QUERY_PARAMETERS } from '#constants/errors.constants.ts';
 import z from 'zod';
 
 const keywordsSchema = z
@@ -27,4 +28,8 @@ export const personFilterSchema = z.object({
   biography: z.string().optional(),
   keywords: keywordsSchema,
   contactInformation: z.string().optional(),
+});
+
+export const getPersonsByIdsSchema = z.object({
+  uid: z.string(),
 });

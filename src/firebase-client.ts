@@ -2,7 +2,7 @@ import admin from 'firebase-admin';
 import { FIREBASE_SERVICE_ACCOUNT, USER_DEFAULT_ROLE } from '#app.config.ts';
 import type { FirebaseUser, User } from '#shared/types/user.type.ts';
 import { HttpError } from '#utils/http-error.utils.ts';
-import { Query, Timestamp, type UpdateData } from 'firebase-admin/firestore';
+import { FieldPath, Query, Timestamp, type UpdateData } from 'firebase-admin/firestore';
 import type { RefreshToken } from '#shared/types/refresh-token.type.ts';
 import {
   ADD_REFRESH_TOKEN_FIREBASE_ERROR,
@@ -13,6 +13,7 @@ import {
   DELETE_REFRESH_TOKEN_FIREBASE_ERROR,
   DELETE_RELATION_FIREBASE_ERROR,
   GET_PERSON_FIREBASE_ERROR,
+  GET_PERSONS_FIREBASE_ERROR,
   GET_RELATION_FIREBASE_ERROR,
   GET_TYPES_OF_RELATIONS_ERROR,
   GET_USER_FIREBASE_ERROR,
@@ -195,6 +196,21 @@ export const getPersonById = async (personId: string): Promise<Person | null> =>
     return person;
   } catch (error) {
     throw error instanceof Error ? error : new Error(`${GET_PERSON_FIREBASE_ERROR} ${error}`);
+  }
+};
+
+export const getUserPersons = async (uid: string): Promise<Person[]> => {
+  try {
+    const snap = await dataPoints.persons().where('ownerId', '==', uid).get();
+    const persons: Person[] = [];
+    snap.forEach((doc) => {
+      const person = doc.data() as FirebasePerson;
+      persons.push(firebasePersonToPerson(doc.id, person));
+    });
+
+    return persons;
+  } catch (error) {
+    throw error instanceof Error ? error : new Error(`${GET_PERSONS_FIREBASE_ERROR} ${error}`);
   }
 };
 

@@ -1,6 +1,6 @@
 import { USER_ADMIN_ROLE } from '#app.config.ts';
 import { NO_PERMISSIONS, PERSON_NOT_FOUND } from '#constants/errors.constants.ts';
-import { createPerson, deletePerson, getPersonById, getPersons, updatePerson } from '#firebase-client.ts';
+import { createPerson, deletePerson, getPersonById, getPersons, getUserPersons, updatePerson } from '#firebase-client.ts';
 import type { JwtAccessTokenPayload } from '#shared/types/jwt.type.ts';
 import type { Person, PersonDto, PersonFilters } from '#shared/types/person.type.ts';
 import { HttpError } from '#utils/http-error.utils.ts';
@@ -18,6 +18,15 @@ export const getPersonService = async (personId: string): Promise<PersonDto> => 
 export const getPersonsService = async (filters: PersonFilters): Promise<Partial<Person[]> | null> => {
   const firebaseFilter = personFilterToFirebasePersonFilter(filters);
   const persons = await getPersons(firebaseFilter);
+  return persons;
+};
+
+export const getUserPersonsSecvice = async (uid: string, jwtPayload: JwtAccessTokenPayload): Promise<Person[]> => {
+  if (uid !== jwtPayload.uid && jwtPayload.roleId !== USER_ADMIN_ROLE) {
+    throw new HttpError(403, NO_PERMISSIONS);
+  }
+
+  const persons = await getUserPersons(uid);
   return persons;
 };
 

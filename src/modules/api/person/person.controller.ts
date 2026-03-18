@@ -4,13 +4,14 @@ import type { Request, Response } from 'express';
 import {
   createPersonService,
   deletePersonService,
+  getUserPersonsSecvice,
   getPersonService,
   getPersonsService,
   updatePersonService,
 } from './person.service.ts';
 import { personFields, personRequiredFields, type PersonDto } from '#shared/types/person.type.ts';
 import type { JwtAccessTokenPayload } from '#shared/types/jwt.type.ts';
-import { personFilterSchema } from '#shared/schemas/person.schema.ts';
+import { getPersonsByIdsSchema, personFilterSchema } from '#shared/schemas/person.schema.ts';
 
 export const getPersonController = async (req: Request, res: Response): Promise<void> => {
   const personId = req.params.personId;
@@ -25,6 +26,15 @@ export const getPersonController = async (req: Request, res: Response): Promise<
 export const getPersonsController = async (req: Request, res: Response): Promise<void> => {
   const filters = personFilterSchema.parse(req.query);
   const persons = await getPersonsService(filters);
+  res.json(persons);
+};
+
+export const getUserPersonsController = async (req: Request, res: Response): Promise<void> => {
+  const uid = getPersonsByIdsSchema.parse(req.query).uid;
+  const jwtPayload: JwtAccessTokenPayload = res.locals.user;
+  console.log(uid, jwtPayload);
+
+  const persons = await getUserPersonsSecvice(uid, jwtPayload);
   res.json(persons);
 };
 

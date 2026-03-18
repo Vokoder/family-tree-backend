@@ -5,7 +5,7 @@ import { logger } from '#utils/logger.utils.ts';
 export const httpErrorMiddleware = (err: HttpError, req: Request, res: Response, next: NextFunction) => {
   req.resume();
   logger.error(err);
-  res.status(err.status).json({ error: 'Request error', ...err.toJson() });
+  res.status(Number.isInteger(err.status) ? err.status : 500).json({ error: 'Request error', ...err.toJson() });
   next();
 };
 
