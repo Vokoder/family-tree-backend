@@ -8,14 +8,6 @@ import { Timestamp } from 'firebase-admin/firestore';
 import jwt from 'jsonwebtoken';
 import type { Response } from 'express';
 
-// true = verified, false - unverified
-export const isJwtTokenValid = (token: string): boolean => {
-  jwt.verify(token, JWT_SECRET, (error) => {
-    return error ? false : true;
-  });
-  return false;
-};
-
 export const getJwtToken = (req: Request): string | null => {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1];
@@ -31,15 +23,13 @@ export function getJwtPayloadFromRequest(req: Request): jwt.JwtPayload | null {
   return null;
 }
 
-export function getJwtPayload(token: string): jwt.JwtPayload | null {
-  jwt.verify(token, JWT_SECRET, (error, user) => {
-    if (!error) {
-      return user;
-    }
-  });
-
-  return null;
-}
+export const getJwtPayload = async (token: string): Promise<jwt.JwtPayload | null> => {
+  try {
+    return jwt.verify(token, JWT_SECRET) as jwt.JwtPayload;
+  } catch {
+    return null;
+  }
+};
 
 export const generateAccessToken = (user: User): string => {
   return jwt.sign({ uid: user.id, login: user.login, roleId: user.roleId } as JwtAccessTokenPayload, JWT_SECRET, {
@@ -97,4 +87,16 @@ export const setJwtCookies = (res: Response, tokens: JwtTokens): void => {
     sameSite: 'strict',
     maxAge: REFRESH_TOKEN_EXPIRES_IN * 1000,
   });
+};
+
+export const clearJwtCookies = (res: Response): void => {
+  const cookieOptions = {
+    httpOnly: true,
+    secure: true,
+    sameSite: 'strict' as const,
+    expires: new Date(0),
+  };
+
+  res.cookie('accessToken', '', cookieOptions);
+  res.cookie('refreshToken', '', cookieOptions);
 };

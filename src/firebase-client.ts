@@ -67,7 +67,7 @@ const dataPoints = {
 
 export const addRefreshToken = async (token: RefreshToken) => {
   try {
-    await dataPoints.refreshTokens().add({ token });
+    await dataPoints.refreshTokens().add(token);
   } catch (error) {
     throw error instanceof Error ? error : new Error(`${ADD_REFRESH_TOKEN_FIREBASE_ERROR} ${error}`);
   }
@@ -95,6 +95,24 @@ export const deleteRefreshToken = async (uid: string, token: string) => {
     }
 
     tokenSnapshot.docs[0].ref.delete();
+  } catch (error) {
+    throw error instanceof Error ? error : new Error(`${DELETE_REFRESH_TOKEN_FIREBASE_ERROR} ${error}`);
+  }
+};
+
+export const deleteRefreshTokens = async (uid: string) => {
+  try {
+    const tokenSnapshot = await dataPoints.refreshTokens().where('uid', '==', uid).get();
+    if (tokenSnapshot.empty) {
+      throw new HttpError(403, 'Invalid refresh token');
+    }
+
+    const batch = admin.firestore().batch();
+
+    tokenSnapshot.docs.forEach((doc) => {
+      batch.delete(doc.ref);
+    });
+    await batch.commit();
   } catch (error) {
     throw error instanceof Error ? error : new Error(`${DELETE_REFRESH_TOKEN_FIREBASE_ERROR} ${error}`);
   }

@@ -1,16 +1,20 @@
-import { HttpError } from '#utils/http-error.utils.ts';
-import { getJwtToken } from '#utils/jwt.utils.ts';
 import type { Request, Response } from 'express';
-import { logoutService } from './logout.service.ts';
-import { NO_REFRESH_TOKEN } from '#constants/errors.constants.ts';
+import { logoutAllService, logoutService } from './logout.service.ts';
+import { clearJwtCookies } from '#utils/jwt.utils.ts';
 
 export const logoutController = async (req: Request, res: Response): Promise<void> => {
   const JwtAccessTokenPayload = res.locals.user;
-  const { body: { jwtRefreshToken } = {} } = req;
-  if (!JwtAccessTokenPayload || !jwtRefreshToken) {
-    throw new HttpError(500, NO_REFRESH_TOKEN);
-  }
+  const refreshToken = res.locals.refreshToken;
 
-  await logoutService(JwtAccessTokenPayload, jwtRefreshToken);
+  await logoutService(JwtAccessTokenPayload, refreshToken);
+  clearJwtCookies(res);
+  res.json({ status: 200 });
+};
+
+export const logoutAllController = async (req: Request, res: Response): Promise<void> => {
+  const JwtAccessTokenPayload = res.locals.user;
+
+  await logoutAllService(JwtAccessTokenPayload);
+  clearJwtCookies(res);
   res.json({ status: 200 });
 };

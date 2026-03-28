@@ -11,6 +11,7 @@ const keywordsSchema = z
     ),
     z.array(z.string()).transform((arr) => arr.flatMap((v) => v.split(',').map((s) => s.trim())).filter(Boolean)),
   ])
+  .transform((arr) => (arr && arr.length > 0 ? arr : undefined))
   .optional();
 
 export const personFilterSchema = z.object({

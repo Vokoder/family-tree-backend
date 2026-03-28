@@ -6,6 +6,10 @@ export interface JwtAccessTokenPayload {
   roleId: string;
 }
 
+export interface JwtRefrashTokenPayload {
+  uid: string;
+}
+
 export interface JwtTokens {
   accessToken: string;
   refreshToken: string;

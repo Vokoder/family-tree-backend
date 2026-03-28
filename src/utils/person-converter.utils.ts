@@ -20,7 +20,16 @@ export const personToFirebasePerson = (person: Person): FirebasePerson => {
   });
 
   dateFields.forEach((field) => {
-    const value = person[field];
+    let value = person[field];
+
+    if (!value) return;
+
+    if (typeof value === 'string') {
+      const parsedDate = new Date(value);
+      if (!isNaN(parsedDate.getTime())) {
+        value = parsedDate;
+      }
+    }
     if (value instanceof Date) {
       Object.assign(firebasePerson, { [field]: Timestamp.fromDate(value) });
     }
@@ -56,6 +65,8 @@ export const personFilterToFirebasePersonFilter = (filters: PersonFilters): Fire
     if (value === undefined) {
       continue;
     }
+
+    if (key === 'keywords' && Array.isArray(value) && value.length === 0) continue;
 
     const firebaseKey = key as keyof FirebasePerson;
     if (key === 'dateOfBirthday' || key === 'dateOfDeath') {
