@@ -2,7 +2,7 @@ import admin from 'firebase-admin';
 import { FIREBASE_SERVICE_ACCOUNT, USER_DEFAULT_ROLE } from '#app.config.ts';
 import type { FirebaseUser, User } from '#shared/types/user.type.ts';
 import { HttpError } from '#utils/http-error.utils.ts';
-import { FieldPath, FieldValue, Query, Timestamp, type UpdateData } from 'firebase-admin/firestore';
+import { FieldPath, Query, Timestamp, type UpdateData } from 'firebase-admin/firestore';
 import type { RefreshToken } from '#shared/types/refresh-token.type.ts';
 import {
   ADD_REFRESH_TOKEN_FIREBASE_ERROR,
@@ -45,6 +45,8 @@ import type {
 } from '#shared/types/relation.type.ts';
 import dayjs from 'dayjs';
 import type { TypeOfRelation } from '#shared/types/types-of-relations.type.ts';
+
+import { Filter } from 'firebase-admin/firestore';
 
 admin.initializeApp({
   credential: admin.credential.cert(FIREBASE_SERVICE_ACCOUNT),
@@ -482,14 +484,56 @@ export const getTypeOfRelation = async (relationId: string): Promise<TypeOfRelat
 };
 
 export const getRelatedPersons = async (personId: string): Promise<PersonWithRelation[]> => {
-  //возвращает массив объектов с персоной и её связью с personId
-  const person: Person = { id: 'fff', firstName: 'first', lastName: 'last', gender: false, ownerId: 'owner' };
-  const relation: Relation = {
-    sourcePersonId: 'pBSlhDM0MCGcD8IqhHkf',
-    targetPersonId: 'fff',
-    relationId: 'id',
-    id: 'id',
-    ownerId: 'owner',
-  };
-  return [{ person, relation }];
+  const relationsSnapshot = await dataPoints
+    .relations()
+    .where(Filter.or(Filter.where('sourcePersonId', '==', personId), Filter.where('targetPersonId', '==', personId)))
+    .get();
+
+  const relations = relationsSnapshot.docs.map(
+    (doc) =>
+      ({
+        id: doc.id,
+        ...doc.data(),
+      }) as Relation,
+  );
+
+  if (relations.length === 0) return [];
+
+  const allTargetIds = relations.map((rel) => (rel.sourcePersonId === personId ? rel.targetPersonId : rel.sourcePersonId));
+  const uniqueTargetIds = [...new Set(allTargetIds)];
+
+  const chunkSize = 30;
+  const chunks = [];
+  for (let i = 0; i < uniqueTargetIds.length; i += chunkSize) {
+    chunks.push(uniqueTargetIds.slice(i, i + chunkSize));
+  }
+
+  const personSnapshots = await Promise.all(
+    chunks.map((chunk) => dataPoints.persons().where(FieldPath.documentId(), 'in', chunk).get()),
+  );
+
+  const personsMap = new Map<string, Person>();
+  personSnapshots.forEach((snap) => {
+    snap.docs.forEach((doc) => {
+      const firebaseData = doc.data() as FirebasePerson;
+      personsMap.set(doc.id, firebasePersonToPerson(doc.id, firebaseData));
+    });
+  });
+
+  const result: PersonWithRelation[] = relations
+    .map((relation) => {
+      const relatedId = relation.sourcePersonId === personId ? relation.targetPersonId : relation.sourcePersonId;
+
+      const personData = personsMap.get(relatedId);
+
+      if (!personData) return null;
+
+      return {
+        relation: relation,
+        person: personData as Person,
+      };
+    })
+    .filter((item): item is PersonWithRelation => item !== null);
+
+  return result;
 };

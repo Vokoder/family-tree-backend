@@ -48,7 +48,9 @@ export const updateRelationController = async (req: Request, res: Response): Pro
 export const createRelationController = async (req: Request, res: Response): Promise<void> => {
   const jwtPayload: JwtAccessTokenPayload = res.locals.user;
   const relationDto = req.body;
-  const hasRequiredFields = relationRequiredFields.every((field) => relationDto[field] !== undefined);
+  const hasRequiredFields = relationRequiredFields.every(
+    (field) => relationDto[field] !== undefined && relationDto[field].trim(),
+  );
   if (!hasRequiredFields) {
     throw new HttpError(400, `${MISSING_REQUIRED_REQUEST_BODY} ${relationRequiredFields.toString()}`);
   }
@@ -65,5 +67,5 @@ export const deleteRelationController = async (req: Request, res: Response): Pro
   }
 
   await deleteRelationService(jwtPayload, relationId);
-  res.status(200);
+  res.json(200);
 };

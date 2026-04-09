@@ -18,6 +18,7 @@ export const NO_DATA_TO_UPDATE = 'No fields to update';
 export const ERROR_CONVERTING_FIREBASE_USER_TO_USER = 'Error converting firebase user to user';
 export const ERROR_CONVERTING_USER_TO_USER_DTO = 'Error converting user to user dto';
 export const WRONG_PASSWORD = 'Wrong password';
+export const SOME_FIELDS_MATCH = 'Some fields match';
 
 // Firebase
 export const ADD_REFRESH_TOKEN_FIREBASE_ERROR = 'Error writing refresh token to Firebase';

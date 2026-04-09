@@ -58,9 +58,7 @@ export const createRelationService = async (jwtPayload: JwtAccessTokenPayload, r
 
   relationDto.ownerId = jwtPayload.uid;
   const normalizedRelationDto = await normalizeRelationDto(relationDto.relationId, relationDto);
-  console.log('normalizeRelationDto', normalizeRelationDto); //
   const exists = await getRelationsService(normalizedRelationDto);
-  console.log('exists', exists, exists?.length); //
 
   if (exists?.length) {
     throw new HttpError(400, RELATION_ALREADY_EXISTS);
@@ -76,7 +74,7 @@ export const deleteRelationService = async (jwtPayload: JwtAccessTokenPayload, r
     throw new HttpError(404, RELATION_NOT_FOUND);
   }
 
-  if (relation.ownerId !== jwtPayload.uid || jwtPayload.roleId !== USER_ADMIN_ROLE) {
+  if (relation.ownerId !== jwtPayload.uid && jwtPayload.roleId !== USER_ADMIN_ROLE) {
     throw new HttpError(403, NO_PERMISSIONS);
   }
 
