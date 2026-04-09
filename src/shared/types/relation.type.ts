@@ -1,5 +1,6 @@
 import type { relationFilterSchema } from '#shared/schemas/relation.schema.ts';
 import type z from 'zod';
+import type { Person } from './person.type.ts';
 
 export interface Relation {
   id: string;
@@ -17,7 +18,12 @@ export type FirebaseRelationFilter = Partial<FirebaseRelation>;
 export type RelationDto = Partial<Relation>;
 
 //  минимально необходимые поля для связи
-export const relationRequiredFields: (keyof Relation)[] = ['ownerId', 'relationId', 'sourcePersonId', 'targetPersonId'];
+export const relationRequiredFields: (keyof Relation)[] = ['relationId', 'sourcePersonId', 'targetPersonId'];
 
 //  поля поиска
 export const relationSearchFields: (keyof Relation)[] = ['id', 'relationId', 'sourcePersonId', 'targetPersonId'];
+
+export interface PersonWithRelation {
+  person: Person;
+  relation: Relation;
+}

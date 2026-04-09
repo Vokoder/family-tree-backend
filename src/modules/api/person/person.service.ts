@@ -1,10 +1,20 @@
 import { USER_ADMIN_ROLE } from '#app.config.ts';
 import { NO_PERMISSIONS, PERSON_NOT_FOUND } from '#constants/errors.constants.ts';
-import { createPerson, deletePerson, getPersonById, getPersons, getUserPersons, updatePerson } from '#firebase-client.ts';
+import {
+  createMyPerson,
+  createPerson,
+  deletePerson,
+  getPersonById,
+  getPersons,
+  getRelatedPersons,
+  getUserPersons,
+  updatePerson,
+} from '#firebase-client.ts';
 import type { JwtAccessTokenPayload } from '#shared/types/jwt.type.ts';
-import type { Person, PersonDto, PersonFilters } from '#shared/types/person.type.ts';
+import type { CreatePersonDto, Person, PersonDto, PersonFilters, UpdatePersonDto } from '#shared/types/person.type.ts';
+import type { PersonWithRelation } from '#shared/types/relation.type.ts';
 import { HttpError } from '#utils/http-error.utils.ts';
-import { personFilterToFirebasePersonFilter } from '#utils/person-converter.utils.ts';
+import { personFilterToFirebasePersonPartial } from '#utils/person-converter.utils.ts';
 
 export const getPersonService = async (personId: string): Promise<PersonDto> => {
   const person = await getPersonById(personId);
@@ -16,7 +26,7 @@ export const getPersonService = async (personId: string): Promise<PersonDto> => 
 };
 
 export const getPersonsService = async (filters: PersonFilters): Promise<Partial<Person[]> | null> => {
-  const firebaseFilter = personFilterToFirebasePersonFilter(filters);
+  const firebaseFilter = personFilterToFirebasePersonPartial(filters);
   const persons = await getPersons(firebaseFilter);
   return persons;
 };
@@ -30,10 +40,14 @@ export const getUserPersonsSecvice = async (uid: string, jwtPayload: JwtAccessTo
   return persons;
 };
 
+export const getRelatedPersonsService = async (personId: string): Promise<PersonWithRelation[]> => {
+  return await getRelatedPersons(personId);
+};
+
 export const updatePersonService = async (
   jwtPayload: JwtAccessTokenPayload,
   personId: string,
-  personDto: PersonDto,
+  personDto: UpdatePersonDto,
 ): Promise<Person> => {
   const person = await getPersonById(personId);
   if (!person) {
@@ -53,10 +67,17 @@ export const updatePersonService = async (
   return updatedPerson;
 };
 
-export const createPersonService = async (jwtPayload: JwtAccessTokenPayload, personDto: PersonDto): Promise<Person> => {
-  personDto.ownerId = jwtPayload.uid;
-  const person = await createPerson(personDto);
-  return person;
+export const createPersonService = async (
+  jwtPayload: JwtAccessTokenPayload,
+  createPersonDto: CreatePersonDto,
+): Promise<Person> => {
+  createPersonDto.person.ownerId = jwtPayload.uid;
+  const { isForSelf, person, relation } = createPersonDto;
+  if (isForSelf) {
+    return await createMyPerson(person, jwtPayload.uid);
+  }
+
+  return await createPerson(person, jwtPayload.uid, relation);
 };
 
 export const deletePersonService = async (jwtPayload: JwtAccessTokenPayload, personId: string): Promise<void> => {

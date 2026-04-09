@@ -23,6 +23,7 @@ export const getRelationService = async (relationId: string): Promise<Relation> 
 
 export const getRelationsService = async (filter: RelationFilters): Promise<Relation[] | null> => {
   const firebaseFilter = relationFilterToFirebaseRelationFilter(filter);
+  console.log('firebaseFilter', firebaseFilter); //
   const relations = await getRelations(firebaseFilter);
   return relations;
 };
@@ -57,12 +58,15 @@ export const createRelationService = async (jwtPayload: JwtAccessTokenPayload, r
 
   relationDto.ownerId = jwtPayload.uid;
   const normalizedRelationDto = await normalizeRelationDto(relationDto.relationId, relationDto);
+  console.log('normalizeRelationDto', normalizeRelationDto); //
   const exists = await getRelationsService(normalizedRelationDto);
-  if (!exists || !exists.length) {
+  console.log('exists', exists, exists?.length); //
+
+  if (exists?.length) {
     throw new HttpError(400, RELATION_ALREADY_EXISTS);
   }
 
-  const relation = await createRelation(jwtPayload.uid, normalizedRelationDto as FirebaseRelation);
+  const relation = await createRelation(normalizedRelationDto as FirebaseRelation);
   return relation;
 };
 

@@ -14,4 +14,4 @@ relationRouter.get('/', getRelationsController);
 relationRouter.get('/:relationId', getRelationController);
 relationRouter.post('/:relationId', authenticationTokenProtectedMiddleware, updateRelationController);
 relationRouter.post('/', authenticationTokenProtectedMiddleware, createRelationController);
-relationRouter.delete('/', authenticationTokenProtectedMiddleware, deleteRelationController);
+relationRouter.delete('/:relationId', authenticationTokenProtectedMiddleware, deleteRelationController);

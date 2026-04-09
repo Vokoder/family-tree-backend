@@ -1,6 +1,7 @@
 import type { personFilterSchema } from '#shared/schemas/person.schema.ts';
 import type { Timestamp } from 'firebase-admin/firestore';
 import type z from 'zod';
+import type { RelationDto } from './relation.type.ts';
 
 export interface Person {
   id: string;
@@ -38,9 +39,17 @@ export interface FirebasePerson {
 }
 
 export type PersonFilters = z.infer<typeof personFilterSchema>;
-export type FirebasePersonFilter = Partial<FirebasePerson>;
+export type FirebasePersonPartial = Partial<FirebasePerson>;
 
+export type UpdatePersonDto = {
+  [K in keyof Person]?: Person[K] | null;
+};
 export type PersonDto = Partial<Person>;
+export type CreatePersonDto = {
+  person: PersonDto;
+  isForSelf: boolean;
+  relation?: RelationDto;
+};
 
 //  поля, присутствующие во всех интерфейсах
 export const personFields: (keyof FirebasePerson)[] = [

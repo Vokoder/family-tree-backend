@@ -41,3 +41,4 @@ export const PERSON_NOT_FOUND = 'Person not found';
 export const RELATION_NOT_FOUND = 'Relation not found';
 export const GET_TYPES_OF_RELATIONS_ERROR = 'Error getting types of relations from firebase';
 export const GET_TYPE_OF_RELATION_ERROR = 'Error getting type of relation from firebase';
+export const EMPTY = 'Empty';

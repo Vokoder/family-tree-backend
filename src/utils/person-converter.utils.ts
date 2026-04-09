@@ -2,27 +2,36 @@ import {
   dateFields,
   simpleFields,
   type FirebasePerson,
-  type FirebasePersonFilter,
+  type FirebasePersonPartial,
   type Person,
   type PersonDto,
   type PersonFilters,
+  type UpdatePersonDto,
 } from '#shared/types/person.type.ts';
-import { Timestamp } from 'firebase-admin/firestore';
+import { FieldValue, Timestamp } from 'firebase-admin/firestore';
 
-export const personToFirebasePerson = (person: Person): FirebasePerson => {
-  const firebasePerson: Partial<FirebasePerson> = {};
+export const personToFirebasePerson = (person: PersonDto): FirebasePersonPartial => {
+  const firebasePerson: FirebasePersonPartial = {};
 
   simpleFields.forEach((field) => {
     const value = person[field];
     if (value !== undefined) {
-      Object.assign(firebasePerson, { [field]: value });
+      if (field === 'keywords' && Array.isArray(value)) {
+        Object.assign(firebasePerson, {
+          [field]: value.map((k) => String(k).toLowerCase().trim()),
+        });
+      } else {
+        Object.assign(firebasePerson, { [field]: value });
+      }
     }
   });
 
   dateFields.forEach((field) => {
     let value = person[field];
 
-    if (!value) return;
+    if (!value) {
+      return;
+    }
 
     if (typeof value === 'string') {
       const parsedDate = new Date(value);
@@ -36,6 +45,52 @@ export const personToFirebasePerson = (person: Person): FirebasePerson => {
   });
 
   return firebasePerson as FirebasePerson;
+};
+
+export const updatePersonToFirebasePerson = (person: UpdatePersonDto): FirebasePersonPartial => {
+  const firebasePerson: FirebasePersonPartial = {};
+
+  simpleFields.forEach((field) => {
+    const value = person[field];
+    if (value === null) {
+      Object.assign(firebasePerson, { [field]: FieldValue.delete() });
+    } else if (value !== undefined) {
+      if (field === 'keywords' && Array.isArray(value)) {
+        Object.assign(firebasePerson, {
+          [field]: value.map((k) => String(k).toLowerCase().trim()),
+        });
+      } else {
+        Object.assign(firebasePerson, { [field]: value });
+      }
+    }
+  });
+
+  dateFields.forEach((field) => {
+    let value = person[field];
+
+    if (value === null) {
+      Object.assign(firebasePerson, { [field]: FieldValue.delete() });
+      return;
+    }
+    if (value === undefined) {
+      return;
+    }
+
+    if (typeof value === 'string') {
+      const parsedDate = new Date(value);
+      if (!isNaN(parsedDate.getTime())) {
+        value = parsedDate;
+      }
+    }
+
+    if (value instanceof Date) {
+      Object.assign(firebasePerson, { [field]: Timestamp.fromDate(value) });
+    } else {
+      Object.assign(firebasePerson, { [field]: value });
+    }
+  });
+
+  return firebasePerson;
 };
 
 export const firebasePersonToPerson = (personId: string, firebasePerson: FirebasePerson): Person => {
@@ -58,7 +113,7 @@ export const firebasePersonToPerson = (personId: string, firebasePerson: Firebas
   return person as Person;
 };
 
-export const personFilterToFirebasePersonFilter = (filters: PersonFilters): FirebasePersonFilter => {
+export const personFilterToFirebasePersonPartial = (filters: PersonFilters): FirebasePersonPartial => {
   const result: Partial<FirebasePerson> = {};
   const entries = Object.entries(filters) as [keyof PersonFilters, unknown][];
   for (const [key, value] of entries) {
@@ -78,5 +133,5 @@ export const personFilterToFirebasePersonFilter = (filters: PersonFilters): Fire
     }
   }
 
-  return result as FirebasePersonFilter;
+  return result as FirebasePersonPartial;
 };

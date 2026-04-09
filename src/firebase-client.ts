@@ -2,7 +2,7 @@ import admin from 'firebase-admin';
 import { FIREBASE_SERVICE_ACCOUNT, USER_DEFAULT_ROLE } from '#app.config.ts';
 import type { FirebaseUser, User } from '#shared/types/user.type.ts';
 import { HttpError } from '#utils/http-error.utils.ts';
-import { FieldPath, Query, Timestamp, type UpdateData } from 'firebase-admin/firestore';
+import { FieldPath, FieldValue, Query, Timestamp, type UpdateData } from 'firebase-admin/firestore';
 import type { RefreshToken } from '#shared/types/refresh-token.type.ts';
 import {
   ADD_REFRESH_TOKEN_FIREBASE_ERROR,
@@ -26,10 +26,23 @@ import {
   UPDATE_USER_FIREBASE_ERROR,
 } from '#constants/errors.constants.ts';
 import { firebaseUserToUser } from '#utils/user-converter.utils.ts';
-import type { FirebasePerson, FirebasePersonFilter, Person, PersonDto, PersonFilters } from '#shared/types/person.type.ts';
-import { firebasePersonToPerson, personToFirebasePerson } from '#utils/person-converter.utils.ts';
+import type {
+  FirebasePerson,
+  FirebasePersonPartial,
+  Person,
+  PersonDto,
+  PersonFilters,
+  UpdatePersonDto,
+} from '#shared/types/person.type.ts';
+import { firebasePersonToPerson, personToFirebasePerson, updatePersonToFirebasePerson } from '#utils/person-converter.utils.ts';
 import { removeUndefined } from '#utils/remove-undefined.utils.ts';
-import type { FirebaseRelation, FirebaseRelationFilter, Relation, RelationDto } from '#shared/types/relation.type.ts';
+import type {
+  FirebaseRelation,
+  FirebaseRelationFilter,
+  PersonWithRelation,
+  Relation,
+  RelationDto,
+} from '#shared/types/relation.type.ts';
 import dayjs from 'dayjs';
 import type { TypeOfRelation } from '#shared/types/types-of-relations.type.ts';
 
@@ -232,7 +245,7 @@ export const getUserPersons = async (uid: string): Promise<Person[]> => {
   }
 };
 
-export const getPersons = async (filters: FirebasePersonFilter): Promise<Person[] | null> => {
+export const getPersons = async (filters: FirebasePersonPartial): Promise<Person[] | null> => {
   try {
     let query: Query = dataPoints.persons();
     Object.entries(filters).forEach(([key, value]) => {
@@ -268,26 +281,58 @@ export const getPersons = async (filters: FirebasePersonFilter): Promise<Person[
   }
 };
 
-export const createPerson = async (personDto: PersonDto): Promise<Person> => {
+export const createPerson = async (personDto: PersonDto, uid: string, relationDto?: RelationDto): Promise<Person> => {
+  const personRef = await dataPoints.persons().doc();
+  const relationRef = await dataPoints.relations().doc();
+  const person: Person = { ...personDto, id: personRef.id } as Person;
   try {
-    const personRef = await dataPoints.persons().doc();
-    const person: Person = { ...personDto, id: personRef.id } as Person;
-    const firebasePerson = personToFirebasePerson(person);
-    personRef.set(firebasePerson);
-    return person;
+    await db.runTransaction(async (transaction) => {
+      const firebasePerson = personToFirebasePerson(person);
+      transaction.set(personRef, firebasePerson);
+
+      if (relationDto) {
+        const firebaseRelation: FirebaseRelation = {
+          ...relationDto,
+          targetPersonId: personRef.id,
+          ownerId: uid,
+        } as FirebaseRelation;
+
+        transaction.set(relationRef, firebaseRelation);
+      }
+    });
+    return { ...personDto, id: personRef.id } as Person;
   } catch (error) {
     throw error instanceof Error ? error : new Error(`${CREATE_PERSON_FIREBASE_ERROR} ${error}`);
   }
 };
 
-export const updatePerson = async (personId: string, personDto: PersonDto): Promise<void> => {
+export const createMyPerson = async (personDto: PersonDto, uid: string): Promise<Person> => {
+  const personRef = await dataPoints.persons().doc();
+  const userRef = await dataPoints.users().doc(uid);
+  const person: Person = { ...personDto, id: personRef.id } as Person;
   try {
-    const { id, dateOfBirthday, dateOfDeath, ...clearedFields } = removeUndefined(personDto);
-    const updates: UpdateData<Partial<FirebasePerson>> = {
-      ...clearedFields,
-      ...(dateOfBirthday !== undefined ? { dateOfBirthday: Timestamp.fromDate(dateOfBirthday) } : {}),
-      ...(dateOfDeath !== undefined ? { dateOfDeath: Timestamp.fromDate(dateOfDeath) } : {}),
+    await db.runTransaction(async (transaction) => {
+      const firebasePerson = personToFirebasePerson(person);
+      transaction.set(personRef, firebasePerson);
+      transaction.update(userRef, { personId: personRef.id });
+    });
+
+    return { ...personDto, id: personRef.id } as Person;
+  } catch (error) {
+    throw error instanceof Error ? error : new Error(`${CREATE_PERSON_FIREBASE_ERROR} ${error}`);
+  }
+};
+
+export const updatePerson = async (personId: string, personDto: UpdatePersonDto): Promise<void> => {
+  try {
+    const { ownerId, lastName, firstName, gender, ...firebaseData } = updatePersonToFirebasePerson(personDto);
+    const updates: UpdateData<FirebasePersonPartial> = {
+      ...firebaseData,
+      ...(lastName ? { lastName } : {}),
+      ...(firstName ? { firstName } : {}),
+      ...(gender ? { gender } : {}),
     };
+
     if (Object.keys(updates).length === 0) {
       throw new HttpError(400, NO_DATA_TO_UPDATE);
     }
@@ -322,38 +367,57 @@ export const getRelationById = async (relationId: string): Promise<Relation | nu
   }
 };
 
-export const getRelations = async (filter: FirebaseRelationFilter): Promise<Relation[] | null> => {
+const asSource = (res: Relation[] | null) => res || [];
+
+export const getRelations = async (filter: FirebaseRelationFilter): Promise<Relation[]> => {
   try {
-    let query: Query = dataPoints.relations();
-    Object.entries(filter).forEach(([key, value]) => {
-      if (value === undefined) {
-        return;
-      }
+    const { sourcePersonId, targetPersonId, ...otherFilters } = filter;
 
-      query = query.where(key, '==', value);
-    });
+    if (sourcePersonId && targetPersonId) {
+      const [pathAB, pathBA] = await Promise.all([
+        fetchRelationsWithFilter(filter),
+        fetchRelationsWithFilter({ ...otherFilters, sourcePersonId: targetPersonId, targetPersonId: sourcePersonId }),
+      ]);
 
-    const snapshot = await query.get();
-    if (snapshot.empty) {
-      return null;
+      const merged = [...asSource(pathAB), ...asSource(pathBA)];
+      return merged.length > 0 ? merged : [];
     }
 
-    const relations: Relation[] = [];
-    snapshot.forEach((doc) => {
-      const data = doc.data() as FirebaseRelation;
-      relations.push({
-        id: doc.id,
-        ...data,
-      });
-    });
+    if (sourcePersonId && !targetPersonId) {
+      const [asSource, asTarget] = await Promise.all([
+        fetchRelationsWithFilter({ ...otherFilters, sourcePersonId }),
+        fetchRelationsWithFilter({ ...otherFilters, targetPersonId: sourcePersonId }),
+      ]);
 
-    return relations;
+      const merged = [...(asSource || []), ...(asTarget || [])];
+      return merged.length > 0 ? merged : [];
+    }
+
+    return await fetchRelationsWithFilter(filter);
   } catch (error) {
     throw error instanceof Error ? error : new Error(`${GET_RELATION_FIREBASE_ERROR} ${error}`);
   }
 };
 
-export const createRelation = async (uid: string, firebaseRelation: FirebaseRelation): Promise<Relation> => {
+const fetchRelationsWithFilter = async (filter: FirebaseRelationFilter): Promise<Relation[]> => {
+  let query: Query = dataPoints.relations();
+
+  Object.entries(filter).forEach(([key, value]) => {
+    if (value !== undefined) {
+      query = query.where(key, '==', value);
+    }
+  });
+
+  const snapshot = await query.get();
+  if (snapshot.empty) return [];
+
+  return snapshot.docs.map((doc) => ({
+    id: doc.id,
+    ...(doc.data() as FirebaseRelation),
+  }));
+};
+
+export const createRelation = async (firebaseRelation: FirebaseRelation): Promise<Relation> => {
   try {
     const relationRef = await dataPoints.relations().doc();
     await relationRef.set(firebaseRelation);
@@ -415,4 +479,17 @@ export const getTypeOfRelation = async (relationId: string): Promise<TypeOfRelat
   } catch (error) {
     throw error instanceof Error ? error : new Error(`${GET_TYPES_OF_RELATIONS_ERROR} ${error}`);
   }
+};
+
+export const getRelatedPersons = async (personId: string): Promise<PersonWithRelation[]> => {
+  //возвращает массив объектов с персоной и её связью с personId
+  const person: Person = { id: 'fff', firstName: 'first', lastName: 'last', gender: false, ownerId: 'owner' };
+  const relation: Relation = {
+    sourcePersonId: 'pBSlhDM0MCGcD8IqhHkf',
+    targetPersonId: 'fff',
+    relationId: 'id',
+    id: 'id',
+    ownerId: 'owner',
+  };
+  return [{ person, relation }];
 };
