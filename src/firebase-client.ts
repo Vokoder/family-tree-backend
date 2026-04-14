@@ -537,3 +537,63 @@ export const getRelatedPersons = async (personId: string): Promise<PersonWithRel
 
   return result;
 };
+
+export const getTreeData = async (rootId: string, depth: number = 5) => {
+  const personIds = new Set<string>([rootId]);
+  const relations: Relation[] = [];
+  let currentLevelIds = [rootId];
+
+  for (let i = 0; i < depth; i++) {
+    if (currentLevelIds.length === 0) break;
+
+    const [asSource, asTarget] = await Promise.all([
+      dataPoints.relations().where('sourcePersonId', 'in', currentLevelIds).get(),
+      dataPoints.relations().where('targetPersonId', 'in', currentLevelIds).get(),
+    ]);
+
+    const nextLevelIds = new Set<string>();
+    const combinedDocs = [...asSource.docs, ...asTarget.docs];
+
+    combinedDocs.forEach((doc) => {
+      const rel = { id: doc.id, ...doc.data() } as Relation;
+
+      if (!relations.find((r) => r.id === rel.id)) {
+        relations.push(rel);
+
+        [rel.sourcePersonId, rel.targetPersonId].forEach((id) => {
+          if (!personIds.has(id)) {
+            personIds.add(id);
+            nextLevelIds.add(id);
+          }
+        });
+      }
+    });
+    currentLevelIds = Array.from(nextLevelIds);
+  }
+
+  const persons = await fetchPersonsByIds(Array.from(personIds));
+  const typesSnap = await dataPoints.typesOfRelations().get();
+  const types = typesSnap.docs.map((doc) => ({ id: doc.id, ...doc.data() }) as TypeOfRelation);
+
+  return {
+    persons,
+    relations,
+    types,
+    rootId,
+  };
+
+  async function fetchPersonsByIds(ids: string[]): Promise<Person[]> {
+    if (ids.length === 0) return [];
+
+    // У firebase есть ограничения на кол-во одновременных запросов, по этому дробим на 30 штук
+    const chunks: string[][] = [];
+    for (let i = 0; i < ids.length; i += 30) {
+      chunks.push(ids.slice(i, i + 30));
+    }
+
+    const fetchPromises = chunks.map((chunk) => dataPoints.persons().where('__name__', 'in', chunk).get());
+    const snapshots = await Promise.all(fetchPromises);
+
+    return snapshots.flatMap((snap) => snap.docs.map((doc) => firebasePersonToPerson(doc.id, doc.data() as FirebasePerson)));
+  }
+};
