@@ -1,6 +1,7 @@
 import { Router } from 'express';
-import { getTree } from './tree.controller.ts';
+import { getTreeController } from './tree.controller.ts';
+import { authenticationTokenProtectedMiddleware } from '#shared/middleware/check-jwt.middleware.ts';
 
 export const treeRouter = Router();
 
-treeRouter.get('/', getTree);
+treeRouter.get('/:personId', authenticationTokenProtectedMiddleware, getTreeController);

@@ -1,7 +1,6 @@
 import { INVALID_JWT_TOKEN, USER_NOT_FOUND } from '#constants/errors.constants.ts';
 import { getUserById } from '#firebase-client.ts';
 import type { JwtRefrashTokenPayload, JwtTokensWithUser } from '#shared/types/jwt.type.ts';
-import type { RefreshToken } from '#shared/types/refresh-token.type.ts';
 import { HttpError } from '#utils/http-error.utils.ts';
 import { extendAuthSession, getJwtPayload } from '#utils/jwt.utils.ts';
 import { userToUserDto } from '#utils/user-converter.utils.ts';

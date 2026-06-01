@@ -10,13 +10,7 @@ import {
   updatePersonService,
   getRelatedPersonsService,
 } from './person.service.ts';
-import {
-  personFields,
-  personRequiredFields,
-  type CreatePersonDto,
-  type PersonDto,
-  type UpdatePersonDto,
-} from '#shared/types/person.type.ts';
+import { personFields, personRequiredFields, type CreatePersonDto, type UpdatePersonDto } from '#shared/types/person.type.ts';
 import type { JwtAccessTokenPayload } from '#shared/types/jwt.type.ts';
 import { getPersonsByIdsSchema, personFilterSchema } from '#shared/schemas/person.schema.ts';
 

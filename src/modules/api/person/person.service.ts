@@ -77,7 +77,13 @@ export const createPersonService = async (
     return await createMyPerson(person, jwtPayload.uid);
   }
 
-  return await createPerson(person, jwtPayload.uid, relation);
+  const hasRelation = relation && Object.keys(relation).length > 0;
+
+  if (hasRelation) {
+    return await createPerson(person, jwtPayload.uid, relation);
+  }
+
+  return await createPerson(person, jwtPayload.uid);
 };
 
 export const deletePersonService = async (jwtPayload: JwtAccessTokenPayload, personId: string): Promise<void> => {

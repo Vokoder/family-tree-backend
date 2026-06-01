@@ -23,7 +23,6 @@ export const getRelationService = async (relationId: string): Promise<Relation> 
 
 export const getRelationsService = async (filter: RelationFilters): Promise<Relation[] | null> => {
   const firebaseFilter = relationFilterToFirebaseRelationFilter(filter);
-  console.log('firebaseFilter', firebaseFilter); //
   const relations = await getRelations(firebaseFilter);
   return relations;
 };
@@ -38,7 +37,7 @@ export const updateRelationService = async (
     throw new HttpError(404, RELATION_NOT_FOUND);
   }
 
-  if (relation.ownerId !== jwtPayload.uid || jwtPayload.roleId !== USER_ADMIN_ROLE) {
+  if (relation.ownerId !== jwtPayload.uid && jwtPayload.roleId !== USER_ADMIN_ROLE) {
     throw new HttpError(403, NO_PERMISSIONS);
   }
 

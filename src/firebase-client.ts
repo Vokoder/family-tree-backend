@@ -47,6 +47,7 @@ import dayjs from 'dayjs';
 import type { TypeOfRelation } from '#shared/types/types-of-relations.type.ts';
 
 import { Filter } from 'firebase-admin/firestore';
+import type { TreeData } from '#shared/types/tree.type.ts';
 
 admin.initializeApp({
   credential: admin.credential.cert(FIREBASE_SERVICE_ACCOUNT),
@@ -88,20 +89,6 @@ export const addRefreshToken = async (token: RefreshToken) => {
   }
 };
 
-export const extendRefreshToken = async (oldToken: string, token: RefreshToken) => {
-  try {
-    const tokenSnapshot = await dataPoints.refreshTokens().where('token', '==', oldToken).where('uid', '==', token.uid).get();
-    if (tokenSnapshot.empty || !tokenSnapshot.docs[0]) {
-      throw new HttpError(403, 'Invalid refresh token');
-    }
-
-    tokenSnapshot.docs[0].ref.delete();
-    addRefreshToken(token);
-  } catch (error) {
-    throw error instanceof Error ? error : new Error(`${UPDATE_REFRESH_TOKEN_FIREBASE_ERROR} ${error}`);
-  }
-};
-
 export const deleteRefreshToken = async (uid: string, token: string) => {
   try {
     const tokenSnapshot = await dataPoints.refreshTokens().where('token', '==', token).where('uid', '==', uid).get();
@@ -112,6 +99,15 @@ export const deleteRefreshToken = async (uid: string, token: string) => {
     tokenSnapshot.docs[0].ref.delete();
   } catch (error) {
     throw error instanceof Error ? error : new Error(`${DELETE_REFRESH_TOKEN_FIREBASE_ERROR} ${error}`);
+  }
+};
+
+export const extendRefreshToken = async (oldToken: string, token: RefreshToken) => {
+  try {
+    deleteRefreshToken(token.uid, oldToken);
+    addRefreshToken(token);
+  } catch (error) {
+    throw error instanceof Error ? error : new Error(`${UPDATE_REFRESH_TOKEN_FIREBASE_ERROR} ${error}`);
   }
 };
 
@@ -538,13 +534,28 @@ export const getRelatedPersons = async (personId: string): Promise<PersonWithRel
   return result;
 };
 
-export const getTreeData = async (rootId: string, depth: number = 5) => {
+const fetchPersonsByIds = async (ids: string[]): Promise<Person[]> => {
+  if (ids.length === 0) return [];
+
+  // У firebase есть ограничения на кол-во одновременных запросов, по этому дробим на 30 штук
+  const chunks: string[][] = [];
+  for (let i = 0; i < ids.length; i += 30) {
+    chunks.push(ids.slice(i, i + 30));
+  }
+
+  const fetchPromises = chunks.map((chunk) => dataPoints.persons().where('__name__', 'in', chunk).get());
+  const snapshots = await Promise.all(fetchPromises);
+
+  return snapshots.flatMap((snap) => snap.docs.map((doc) => firebasePersonToPerson(doc.id, doc.data() as FirebasePerson)));
+};
+
+export const getTreeData = async (rootId: string, depth: number = 5): Promise<TreeData> => {
   const personIds = new Set<string>([rootId]);
   const relations: Relation[] = [];
   let currentLevelIds = [rootId];
 
   for (let i = 0; i < depth; i++) {
-    if (currentLevelIds.length === 0) break;
+    if (currentLevelIds.length === 0 || !currentLevelIds) break;
 
     const [asSource, asTarget] = await Promise.all([
       dataPoints.relations().where('sourcePersonId', 'in', currentLevelIds).get(),
@@ -581,19 +592,4 @@ export const getTreeData = async (rootId: string, depth: number = 5) => {
     types,
     rootId,
   };
-
-  async function fetchPersonsByIds(ids: string[]): Promise<Person[]> {
-    if (ids.length === 0) return [];
-
-    // У firebase есть ограничения на кол-во одновременных запросов, по этому дробим на 30 штук
-    const chunks: string[][] = [];
-    for (let i = 0; i < ids.length; i += 30) {
-      chunks.push(ids.slice(i, i + 30));
-    }
-
-    const fetchPromises = chunks.map((chunk) => dataPoints.persons().where('__name__', 'in', chunk).get());
-    const snapshots = await Promise.all(fetchPromises);
-
-    return snapshots.flatMap((snap) => snap.docs.map((doc) => firebasePersonToPerson(doc.id, doc.data() as FirebasePerson)));
-  }
 };

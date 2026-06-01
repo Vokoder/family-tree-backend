@@ -18,7 +18,7 @@ export const personFilterSchema = z.object({
   lastName: z.string().optional(),
   firstName: z.string().optional(),
   middleName: z.string().optional(),
-  gender: z.coerce.boolean().optional(),
+  gender: z.preprocess((val) => val === 'true' || (val === 'false' ? false : val), z.coerce.boolean().optional()),
   dateOfBirthday: z.coerce.date().optional(),
   placeOfBirthday: z.string().optional(),
   dateOfDeath: z.coerce.date().optional(),
