@@ -29,6 +29,14 @@ export const personFilterSchema = z.object({
   biography: z.string().optional(),
   keywords: keywordsSchema,
   contactInformation: z.string().optional(),
+  page: z.preprocess(
+    (val) => (val !== undefined && val !== null ? Number(val) : undefined),
+    z.number().int().positive().optional(),
+  ),
+  pageSize: z.preprocess(
+    (val) => (val !== undefined && val !== null ? Number(val) : undefined),
+    z.number().int().positive().optional(),
+  ),
 });
 
 export const getPersonsByIdsSchema = z.object({

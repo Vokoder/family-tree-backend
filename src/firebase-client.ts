@@ -98,7 +98,7 @@ export const deleteRefreshToken = async (uid: string, token: string) => {
 
     tokenSnapshot.docs[0].ref.delete();
   } catch (error) {
-    throw error instanceof Error ? error : new Error(`${DELETE_REFRESH_TOKEN_FIREBASE_ERROR} ${error}`);
+    console.error(`${DELETE_REFRESH_TOKEN_FIREBASE_ERROR} ${error}`);
   }
 };
 
@@ -243,9 +243,13 @@ export const getUserPersons = async (uid: string): Promise<Person[]> => {
   }
 };
 
-export const getPersons = async (filters: FirebasePersonPartial): Promise<Person[] | null> => {
+export const getPersons = async (
+  filters: FirebasePersonPartial,
+  page: number,
+  pageSize: number,
+): Promise<{ data: Person[]; total: number }> => {
   try {
-    let query: Query = dataPoints.persons();
+    let baseQuery: Query = dataPoints.persons();
     Object.entries(filters).forEach(([key, value]) => {
       if (value === undefined || value === null) {
         return;
@@ -254,26 +258,41 @@ export const getPersons = async (filters: FirebasePersonPartial): Promise<Person
       if (key.startsWith('date') && value instanceof Timestamp) {
         const startOfDay = dayjs(value.toDate()).startOf('day').toDate();
         const endOfDay = dayjs(value.toDate()).endOf('day').toDate();
-        query = query.where(key, '>=', startOfDay).where(key, '<=', endOfDay);
+        baseQuery = baseQuery.where(key, '>=', startOfDay).where(key, '<=', endOfDay);
       } else if (key === 'keywords' && Array.isArray(value)) {
         if (value.length === 1) {
-          query = query.where(key, 'array-contains', value[0]);
+          baseQuery = baseQuery.where(key, 'array-contains', value[0]);
         } else if (value.length > 1) {
-          query = query.where(key, 'array-contains-any', value);
+          baseQuery = baseQuery.where(key, 'array-contains-any', value);
         }
       } else {
-        query = query.where(key, '==', value);
+        baseQuery = baseQuery.where(key, '==', value);
       }
     });
 
-    const snapshot = await query.get();
+    let pagedQuery = baseQuery.orderBy('__name__');
+
+    const totalSnapshot = await baseQuery.count().get();
+    const total = totalSnapshot.data().count;
+
+    if (page > 1) {
+      const skipCount = (page - 1) * pageSize;
+      const offsetSnapshot = await baseQuery.orderBy('__name__').limit(skipCount).get();
+      if (!offsetSnapshot.empty) {
+        const lastVisibleDoc = offsetSnapshot.docs[offsetSnapshot.docs.length - 1];
+        pagedQuery = pagedQuery.startAfter(lastVisibleDoc);
+      }
+    }
+
+    const snapshot = await pagedQuery.limit(pageSize).get();
+
     const persons: Person[] = [];
     snapshot.forEach((doc) => {
       const data = doc.data() as FirebasePerson;
       persons.push(firebasePersonToPerson(doc.id, data));
     });
 
-    return persons;
+    return { data: persons, total };
   } catch (error) {
     throw error instanceof Error ? error : new Error(`${GET_PERSON_FIREBASE_ERROR} ${error}`);
   }

@@ -25,10 +25,11 @@ export const getPersonService = async (personId: string): Promise<PersonDto> => 
   return person;
 };
 
-export const getPersonsService = async (filters: PersonFilters): Promise<Partial<Person[]> | null> => {
-  const firebaseFilter = personFilterToFirebasePersonPartial(filters);
-  const persons = await getPersons(firebaseFilter);
-  return persons;
+export const getPersonsService = async (filters: PersonFilters): Promise<{ data: Person[]; total: number }> => {
+  const { page = 1, pageSize = 10, ...restFilters } = filters;
+  const firebaseFilter = personFilterToFirebasePersonPartial(restFilters);
+  const data = await getPersons(firebaseFilter, Number(page), Number(pageSize));
+  return data;
 };
 
 export const getUserPersonsSecvice = async (uid: string, jwtPayload: JwtAccessTokenPayload): Promise<Person[]> => {

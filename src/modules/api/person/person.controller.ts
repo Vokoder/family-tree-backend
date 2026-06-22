@@ -26,8 +26,8 @@ export const getPersonController = async (req: Request, res: Response): Promise<
 
 export const getPersonsController = async (req: Request, res: Response): Promise<void> => {
   const filters = personFilterSchema.parse(req.query);
-  const persons = await getPersonsService(filters);
-  res.json(persons);
+  const data = await getPersonsService(filters);
+  res.json(data);
 };
 
 export const getUserPersonsController = async (req: Request, res: Response): Promise<void> => {
