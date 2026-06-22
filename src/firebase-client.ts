@@ -556,7 +556,6 @@ export const getRelatedPersons = async (personId: string): Promise<PersonWithRel
 const fetchPersonsByIds = async (ids: string[]): Promise<Person[]> => {
   if (ids.length === 0) return [];
 
-  // У firebase есть ограничения на кол-во одновременных запросов, по этому дробим на 30 штук
   const chunks: string[][] = [];
   for (let i = 0; i < ids.length; i += 30) {
     chunks.push(ids.slice(i, i + 30));
